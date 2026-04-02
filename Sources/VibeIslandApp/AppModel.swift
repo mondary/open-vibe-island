@@ -68,7 +68,13 @@ final class AppModel {
     private let codexRolloutDiscovery = CodexRolloutDiscovery()
 
     @ObservationIgnored
+    private let terminalSessionAttachmentProbe = TerminalSessionAttachmentProbe()
+
+    @ObservationIgnored
     private var codexSessionPersistenceTask: Task<Void, Never>?
+
+    @ObservationIgnored
+    private var sessionAttachmentMonitorTask: Task<Void, Never>?
 
     init() {
         overlayDisplaySelectionID = UserDefaults.standard.string(
@@ -227,6 +233,8 @@ final class AppModel {
 
         restorePersistedCodexSessions()
         discoverRecentCodexSessions()
+        reconcileSessionAttachments()
+        startSessionAttachmentMonitoringIfNeeded()
         hooksBinaryURL = HooksBinaryLocator.locate()
         refreshCodexHookStatus()
         refreshCodexRolloutTracking()
@@ -496,6 +504,7 @@ final class AppModel {
         updateLastActionMessage: Bool = true
     ) {
         state.apply(event)
+        markSessionAttached(for: event)
         synchronizeSelection()
         refreshCodexRolloutTracking()
         scheduleCodexSessionPersistence()
@@ -602,6 +611,7 @@ final class AppModel {
         }
 
         merged.origin = existing.origin ?? discovered.origin
+        merged.attachmentState = mergeAttachmentState(existing.attachmentState, discovered.attachmentState)
         merged.jumpTarget = existing.jumpTarget ?? discovered.jumpTarget
         merged.codexMetadata = mergeCodexMetadata(existing.codexMetadata, discovered.codexMetadata)
 
@@ -651,34 +661,23 @@ final class AppModel {
             return lhsScore > rhsScore
         }
 
-        let primary = rankedSessions.filter { isLiveSession($0, now: now) }
+        let primary = rankedSessions.filter(\.isAttachedToTerminal)
         let primaryIDs = Set(primary.map(\.id))
         let overflow = rankedSessions.filter { !primaryIDs.contains($0.id) }
         return (primary, overflow)
     }
 
-    private func isLiveSession(_ session: AgentSession, now: Date) -> Bool {
-        if session.phase.requiresAttention {
-            return true
-        }
-
-        if session.codexMetadata?.currentTool?.isEmpty == false {
-            return true
-        }
-
-        if session.jumpTarget != nil {
-            return true
-        }
-
-        if session.phase == .running {
-            return session.updatedAt >= now.addingTimeInterval(-Self.liveSessionStalenessWindow)
-        }
-
-        return false
-    }
-
     private func displayPriority(for session: AgentSession, now: Date) -> Int {
         var score = 0
+
+        switch session.attachmentState {
+        case .attached:
+            score += 12_000
+        case .stale:
+            score += 1_000
+        case .detached:
+            break
+        }
 
         if session.phase.requiresAttention {
             score += 10_000
@@ -727,6 +726,79 @@ final class AppModel {
             defaults.removeObject(forKey: Self.overlayDisplayPreferenceDefaultsKey)
         } else {
             defaults.set(overlayDisplaySelectionID, forKey: Self.overlayDisplayPreferenceDefaultsKey)
+        }
+    }
+
+    private func startSessionAttachmentMonitoringIfNeeded() {
+        guard sessionAttachmentMonitorTask == nil else {
+            return
+        }
+
+        sessionAttachmentMonitorTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            while !Task.isCancelled {
+                self.reconcileSessionAttachments()
+                try? await Task.sleep(for: .seconds(3))
+            }
+        }
+    }
+
+    private func reconcileSessionAttachments() {
+        let sessions = state.sessions.filter(\.isTrackedLiveCodexSession)
+        guard !sessions.isEmpty else {
+            return
+        }
+
+        let updates = terminalSessionAttachmentProbe.attachmentStates(for: sessions)
+        guard state.reconcileAttachmentStates(updates) else {
+            return
+        }
+
+        synchronizeSelection()
+        scheduleCodexSessionPersistence()
+    }
+
+    private func markSessionAttached(for event: AgentEvent) {
+        guard let sessionID = sessionID(for: event) else {
+            return
+        }
+
+        _ = state.reconcileAttachmentStates([sessionID: .attached])
+    }
+
+    private func sessionID(for event: AgentEvent) -> String? {
+        switch event {
+        case let .sessionStarted(payload):
+            payload.sessionID
+        case let .activityUpdated(payload):
+            payload.sessionID
+        case let .permissionRequested(payload):
+            payload.sessionID
+        case let .questionAsked(payload):
+            payload.sessionID
+        case let .sessionCompleted(payload):
+            payload.sessionID
+        case let .jumpTargetUpdated(payload):
+            payload.sessionID
+        case let .sessionMetadataUpdated(payload):
+            payload.sessionID
+        }
+    }
+
+    private func mergeAttachmentState(
+        _ existing: SessionAttachmentState,
+        _ discovered: SessionAttachmentState
+    ) -> SessionAttachmentState {
+        switch (existing, discovered) {
+        case (.attached, _), (_, .attached):
+            .attached
+        case (.stale, _), (_, .stale):
+            .stale
+        case (.detached, .detached):
+            .detached
         }
     }
 

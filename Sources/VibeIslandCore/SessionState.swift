@@ -49,6 +49,7 @@ public struct SessionState: Equatable, Sendable {
                 title: payload.title,
                 tool: payload.tool,
                 origin: payload.origin,
+                attachmentState: .attached,
                 phase: .running,
                 summary: payload.summary,
                 updatedAt: payload.timestamp,
@@ -166,6 +167,24 @@ public struct SessionState: Equatable, Sendable {
         session.summary = "Answered: \(answer)"
         session.updatedAt = timestamp
         upsert(session)
+    }
+
+    @discardableResult
+    public mutating func reconcileAttachmentStates(_ updates: [String: SessionAttachmentState]) -> Bool {
+        var changed = false
+
+        for (sessionID, attachmentState) in updates {
+            guard var session = sessionsByID[sessionID],
+                  session.attachmentState != attachmentState else {
+                continue
+            }
+
+            session.attachmentState = attachmentState
+            upsert(session)
+            changed = true
+        }
+
+        return changed
     }
 
     private mutating func upsert(_ session: AgentSession) {

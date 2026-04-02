@@ -19,6 +19,7 @@ struct CodexSessionTrackingTests {
                 sessionID: "codex-session-1",
                 title: "Codex · vibe-island",
                 origin: .live,
+                attachmentState: .attached,
                 summary: "Inspecting rollout watcher.",
                 phase: .running,
                 updatedAt: Date(timeIntervalSince1970: 1_000),
@@ -41,6 +42,7 @@ struct CodexSessionTrackingTests {
         #expect(reloaded == records)
         #expect(reloaded.first?.session.codexMetadata?.transcriptPath == "/tmp/rollout.jsonl")
         #expect(reloaded.first?.session.origin == .live)
+        #expect(reloaded.first?.session.attachmentState == .attached)
     }
 
     @Test
@@ -49,6 +51,7 @@ struct CodexSessionTrackingTests {
             sessionID: "codex-live-1",
             title: "Codex · live",
             origin: .live,
+            attachmentState: .attached,
             summary: "Working",
             phase: .running,
             updatedAt: .now
@@ -57,6 +60,7 @@ struct CodexSessionTrackingTests {
             sessionID: "codex-demo-1",
             title: "Codex · demo",
             origin: .demo,
+            attachmentState: .attached,
             summary: "Working",
             phase: .running,
             updatedAt: .now
@@ -72,6 +76,44 @@ struct CodexSessionTrackingTests {
         #expect(liveRecord.shouldRestoreToLiveState)
         #expect(!demoRecord.shouldRestoreToLiveState)
         #expect(!legacyMockRecord.shouldRestoreToLiveState)
+    }
+
+    @Test
+    func codexSessionStoreLoadsLegacyRecordsWithoutAttachmentState() throws {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vibe-island-legacy-tracking-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = rootURL.appendingPathComponent("session-terminals.json")
+        let store = CodexSessionStore(fileURL: fileURL)
+
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        let legacyJSON = """
+        [
+          {
+            "codexMetadata" : {
+              "currentTool" : "exec_command",
+              "lastAssistantMessage" : "Inspecting rollout watcher.",
+              "transcriptPath" : "/tmp/rollout.jsonl"
+            },
+            "origin" : "live",
+            "phase" : "running",
+            "sessionID" : "codex-session-legacy",
+            "summary" : "Inspecting rollout watcher.",
+            "title" : "Codex · vibe-island",
+            "updatedAt" : "1970-01-01T00:16:40Z"
+          }
+        ]
+        """
+        try legacyJSON.write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let records = try store.load()
+
+        #expect(records.count == 1)
+        #expect(records.first?.attachmentState == .stale)
+        #expect(records.first?.session.attachmentState == .stale)
     }
 
     @Test
@@ -279,6 +321,7 @@ struct CodexSessionTrackingTests {
         #expect(records.first?.codexMetadata?.lastAssistantMessage == "Inspecting the local rollout files.")
         #expect(records.first?.codexMetadata?.currentTool == "exec_command")
         #expect(records.first?.origin == .live)
+        #expect(records.first?.attachmentState == .stale)
     }
 }
 

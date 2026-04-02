@@ -33,6 +33,16 @@ public enum SessionOrigin: String, Codable, Sendable {
     case demo
 }
 
+public enum SessionAttachmentState: String, Codable, Sendable {
+    case attached
+    case stale
+    case detached
+
+    public var isLive: Bool {
+        self == .attached
+    }
+}
+
 public enum SessionPhase: String, Codable, Sendable {
     case running
     case waitingForApproval
@@ -133,6 +143,7 @@ public struct AgentSession: Equatable, Identifiable, Codable, Sendable {
     public var title: String
     public var tool: AgentTool
     public var origin: SessionOrigin?
+    public var attachmentState: SessionAttachmentState
     public var phase: SessionPhase
     public var summary: String
     public var updatedAt: Date
@@ -146,6 +157,7 @@ public struct AgentSession: Equatable, Identifiable, Codable, Sendable {
         title: String,
         tool: AgentTool,
         origin: SessionOrigin? = nil,
+        attachmentState: SessionAttachmentState = .stale,
         phase: SessionPhase,
         summary: String,
         updatedAt: Date,
@@ -158,6 +170,7 @@ public struct AgentSession: Equatable, Identifiable, Codable, Sendable {
         self.title = title
         self.tool = tool
         self.origin = origin
+        self.attachmentState = attachmentState
         self.phase = phase
         self.summary = summary
         self.updatedAt = updatedAt
@@ -165,6 +178,53 @@ public struct AgentSession: Equatable, Identifiable, Codable, Sendable {
         self.questionPrompt = questionPrompt
         self.jumpTarget = jumpTarget
         self.codexMetadata = codexMetadata
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case tool
+        case origin
+        case attachmentState
+        case phase
+        case summary
+        case updatedAt
+        case permissionRequest
+        case questionPrompt
+        case jumpTarget
+        case codexMetadata
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        tool = try container.decode(AgentTool.self, forKey: .tool)
+        origin = try container.decodeIfPresent(SessionOrigin.self, forKey: .origin)
+        attachmentState = try container.decodeIfPresent(SessionAttachmentState.self, forKey: .attachmentState) ?? .stale
+        phase = try container.decode(SessionPhase.self, forKey: .phase)
+        summary = try container.decode(String.self, forKey: .summary)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        permissionRequest = try container.decodeIfPresent(PermissionRequest.self, forKey: .permissionRequest)
+        questionPrompt = try container.decodeIfPresent(QuestionPrompt.self, forKey: .questionPrompt)
+        jumpTarget = try container.decodeIfPresent(JumpTarget.self, forKey: .jumpTarget)
+        codexMetadata = try container.decodeIfPresent(CodexSessionMetadata.self, forKey: .codexMetadata)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(tool, forKey: .tool)
+        try container.encodeIfPresent(origin, forKey: .origin)
+        try container.encode(attachmentState, forKey: .attachmentState)
+        try container.encode(phase, forKey: .phase)
+        try container.encode(summary, forKey: .summary)
+        try container.encode(updatedAt, forKey: .updatedAt)
+        try container.encodeIfPresent(permissionRequest, forKey: .permissionRequest)
+        try container.encodeIfPresent(questionPrompt, forKey: .questionPrompt)
+        try container.encodeIfPresent(jumpTarget, forKey: .jumpTarget)
+        try container.encodeIfPresent(codexMetadata, forKey: .codexMetadata)
     }
 }
 
@@ -175,5 +235,9 @@ public extension AgentSession {
 
     var isTrackedLiveCodexSession: Bool {
         tool == .codex && !isDemoSession
+    }
+
+    var isAttachedToTerminal: Bool {
+        attachmentState.isLive
     }
 }

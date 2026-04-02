@@ -124,6 +124,44 @@ struct SessionStateTests {
 
         #expect(state.session(id: "live-session-1")?.origin == .live)
         #expect(state.session(id: "live-session-1")?.isDemoSession == false)
+        #expect(state.session(id: "live-session-1")?.attachmentState == .attached)
+    }
+
+    @Test
+    func reconcileAttachmentStatesUpdatesExistingSessionsOnly() {
+        let startedAt = Date(timeIntervalSince1970: 4_000)
+        var state = SessionState(
+            sessions: [
+                AgentSession(
+                    id: "attached-session",
+                    title: "Attached session",
+                    tool: .codex,
+                    attachmentState: .stale,
+                    phase: .completed,
+                    summary: "Turn completed",
+                    updatedAt: startedAt
+                ),
+                AgentSession(
+                    id: "untouched-session",
+                    title: "Untouched session",
+                    tool: .codex,
+                    attachmentState: .attached,
+                    phase: .running,
+                    summary: "Still running",
+                    updatedAt: startedAt.addingTimeInterval(5)
+                ),
+            ]
+        )
+
+        let changed = state.reconcileAttachmentStates([
+            "attached-session": .attached,
+            "missing-session": .detached,
+        ])
+
+        #expect(changed)
+        #expect(state.session(id: "attached-session")?.attachmentState == .attached)
+        #expect(state.session(id: "attached-session")?.summary == "Turn completed")
+        #expect(state.session(id: "untouched-session")?.attachmentState == .attached)
     }
 
     @Test
