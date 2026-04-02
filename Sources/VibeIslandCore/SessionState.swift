@@ -30,7 +30,7 @@ public struct SessionState: Equatable, Sendable {
     }
 
     public var liveSessionCount: Int {
-        sessionsByID.values.filter(\.isAttachedToTerminal).count
+        sessionsByID.values.filter(\.countsTowardLiveSessionCount).count
     }
 
     public var liveAttentionCount: Int {

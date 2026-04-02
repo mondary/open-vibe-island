@@ -187,6 +187,15 @@ struct SessionStateTests {
                     updatedAt: .now
                 ),
                 AgentSession(
+                    id: "attached-completed",
+                    title: "Attached completed",
+                    tool: .codex,
+                    attachmentState: .attached,
+                    phase: .completed,
+                    summary: "Finished",
+                    updatedAt: .now
+                ),
+                AgentSession(
                     id: "detached-running",
                     title: "Detached running",
                     tool: .codex,

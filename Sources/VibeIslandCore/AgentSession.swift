@@ -240,4 +240,8 @@ public extension AgentSession {
     var isAttachedToTerminal: Bool {
         attachmentState.isLive
     }
+
+    var countsTowardLiveSessionCount: Bool {
+        isAttachedToTerminal && phase != .completed
+    }
 }

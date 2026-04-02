@@ -218,10 +218,10 @@ struct IslandPanelView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 8) {
-                headerPill("\(model.state.runningCount) live", tint: .white.opacity(0.7))
+                headerPill("\(model.liveSessionCount) live", tint: .white.opacity(0.7))
 
-                if model.state.attentionCount > 0 {
-                    headerPill("\(model.state.attentionCount) attention", tint: .orange.opacity(0.95))
+                if model.liveAttentionCount > 0 {
+                    headerPill("\(model.liveAttentionCount) attention", tint: .orange.opacity(0.95))
                 }
 
                 Button {

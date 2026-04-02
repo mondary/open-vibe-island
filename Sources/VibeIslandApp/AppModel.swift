@@ -861,7 +861,7 @@ final class AppModel {
             return lhsScore > rhsScore
         }
 
-        let primary = rankedSessions.filter(\.isAttachedToTerminal)
+        let primary = rankedSessions.filter(\.countsTowardLiveSessionCount)
         let primaryIDs = Set(primary.map(\.id))
         let overflow = rankedSessions.filter { !primaryIDs.contains($0.id) }
         return (primary, overflow)
