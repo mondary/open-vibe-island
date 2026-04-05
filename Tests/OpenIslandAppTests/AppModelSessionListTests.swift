@@ -424,7 +424,7 @@ struct AppModelSessionListTests {
             ]
         )
 
-        let merged = model.mergeDiscoveredSessions([
+        let merged = model.discovery.mergeDiscoveredSessions([
             AgentSession(
                 id: "claude-session",
                 title: "Claude · open-island",

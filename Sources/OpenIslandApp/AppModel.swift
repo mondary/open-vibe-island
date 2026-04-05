@@ -51,6 +51,7 @@ final class AppModel {
     var islandSurface: IslandSurface = .sessionList
     var isOverlayVisible: Bool { notchStatus != .closed }
     let hooks = HookInstallationCoordinator()
+    let discovery = SessionDiscoveryCoordinator()
     var isCodexSetupBusy: Bool { hooks.isCodexSetupBusy }
     var isClaudeHookSetupBusy: Bool { hooks.isClaudeHookSetupBusy }
     var isClaudeUsageSetupBusy: Bool { hooks.isClaudeUsageSetupBusy }
@@ -128,20 +129,6 @@ final class AppModel {
     @ObservationIgnored
     private let terminalJumpAction: @Sendable (JumpTarget) throws -> String
 
-    @ObservationIgnored
-    private let codexSessionStore = CodexSessionStore()
-
-    @ObservationIgnored
-    private let claudeSessionRegistry = ClaudeSessionRegistry()
-
-    @ObservationIgnored
-    private let codexRolloutWatcher = CodexRolloutWatcher()
-
-    @ObservationIgnored
-    private let codexRolloutDiscovery = CodexRolloutDiscovery()
-
-    @ObservationIgnored
-    private let claudeTranscriptDiscovery = ClaudeTranscriptDiscovery()
 
     @ObservationIgnored
     private let terminalSessionAttachmentProbe = TerminalSessionAttachmentProbe()
@@ -155,11 +142,6 @@ final class AppModel {
     @ObservationIgnored
     private let activeAgentProcessDiscovery = ActiveAgentProcessDiscovery()
 
-    @ObservationIgnored
-    private var codexSessionPersistenceTask: Task<Void, Never>?
-
-    @ObservationIgnored
-    private var claudeSessionPersistenceTask: Task<Void, Never>?
 
     @ObservationIgnored
     private var sessionAttachmentMonitorTask: Task<Void, Never>?
@@ -189,7 +171,18 @@ final class AppModel {
             self?.lastActionMessage = message
         }
 
-        codexRolloutWatcher.eventHandler = { [weak self] event in
+        discovery.syntheticClaudeSessionPrefix = Self.syntheticClaudeSessionPrefix
+        discovery.onStatusMessage = { [weak self] message in
+            self?.lastActionMessage = message
+        }
+        discovery.stateAccessor = { [weak self] in self?.state ?? SessionState() }
+        discovery.stateUpdater = { [weak self] in self?.state = $0 }
+        discovery.onStateChanged = { [weak self] in
+            self?.synchronizeSelection()
+            self?.refreshOverlayPlacementIfVisible()
+        }
+
+        discovery.codexRolloutWatcher.eventHandler = { [weak self] event in
             Task { @MainActor [weak self] in
                 self?.applyTrackedEvent(
                     event,
@@ -375,41 +368,6 @@ final class AppModel {
         return "Finish the setup steps in the left column, then start Codex from Terminal."
     }
 
-    /// Raw I/O results collected off the main thread during startup.
-    private struct StartupDiscoveryPayload: Sendable {
-        var codexRecords: [CodexTrackedSessionRecord]
-        var codexRecordsNeedPrune: Bool
-        var claudeRecords: [ClaudeTrackedSessionRecord]
-        var claudeRecordsNeedPrune: Bool
-        var discoveredCodexRecords: [CodexTrackedSessionRecord]
-        var discoveredClaudeSessions: [AgentSession]
-        var hooksBinaryURL: URL?
-    }
-
-    /// Performs all startup file I/O off the main thread and returns the raw results.
-    nonisolated private func loadStartupDiscoveryPayload() -> StartupDiscoveryPayload {
-        let cutoff = Date.now.addingTimeInterval(-86_400)
-
-        let allCodex = (try? codexSessionStore.load()) ?? []
-        let codexRecords = allCodex.filter { $0.updatedAt >= cutoff && $0.shouldRestoreToLiveState }
-
-        let allClaude = (try? claudeSessionRegistry.load()) ?? []
-        let claudeRecords = allClaude.filter { $0.updatedAt >= cutoff && $0.shouldRestoreToLiveState }
-
-        let discoveredCodex = codexRolloutDiscovery.discoverRecentSessions()
-        let discoveredClaude = claudeTranscriptDiscovery.discoverRecentSessions()
-
-        return StartupDiscoveryPayload(
-            codexRecords: codexRecords,
-            codexRecordsNeedPrune: codexRecords != allCodex,
-            claudeRecords: claudeRecords,
-            claudeRecordsNeedPrune: claudeRecords != allClaude,
-            discoveredCodexRecords: discoveredCodex,
-            discoveredClaudeSessions: discoveredClaude,
-            hooksBinaryURL: HooksBinaryLocator.locate()
-        )
-    }
-
     func startIfNeeded(
         startBridge: Bool = true,
         shouldPerformBootAnimation: Bool = true,
@@ -425,7 +383,7 @@ final class AppModel {
 
             Task.detached(priority: .userInitiated) { [weak self] in
                 guard let self else { return }
-                let payload = self.loadStartupDiscoveryPayload()
+                let payload = self.discovery.loadStartupDiscoveryPayload()
                 await MainActor.run {
                     self.applyStartupDiscoveryPayload(payload)
                 }
@@ -898,10 +856,10 @@ final class AppModel {
             markSessionProcessAlive(for: event)
         }
         synchronizeSelection()
-        refreshCodexRolloutTracking()
+        discovery.refreshCodexRolloutTracking()
         refreshOverlayPlacementIfVisible()
-        scheduleCodexSessionPersistence()
-        scheduleClaudeSessionPersistence()
+        discovery.scheduleCodexSessionPersistence()
+        discovery.scheduleClaudeSessionPersistence()
 
         if updateLastActionMessage {
             lastActionMessage = describe(event)
@@ -991,51 +949,8 @@ final class AppModel {
     }
 
     /// Applies startup discovery results on the main thread after background I/O completes.
-    private func applyStartupDiscoveryPayload(_ payload: StartupDiscoveryPayload) {
-        // Prune stale records if needed.
-        if payload.codexRecordsNeedPrune {
-            try? codexSessionStore.save(payload.codexRecords)
-        }
-        if payload.claudeRecordsNeedPrune {
-            try? claudeSessionRegistry.save(payload.claudeRecords)
-        }
-
-        // Restore persisted Codex sessions.
-        if !payload.codexRecords.isEmpty {
-            state = SessionState(sessions: payload.codexRecords.map(\.restorableSession))
-            synchronizeSelection()
-            refreshOverlayPlacementIfVisible()
-            lastActionMessage = "Restored \(payload.codexRecords.count) recent Codex session(s) from local cache."
-        }
-
-        // Restore persisted Claude sessions.
-        if !payload.claudeRecords.isEmpty {
-            let restoredSessions = payload.claudeRecords.map(\.restorableSession)
-            state = SessionState(sessions: mergeDiscoveredSessions(restoredSessions))
-            synchronizeSelection()
-            refreshOverlayPlacementIfVisible()
-            lastActionMessage = "Restored \(payload.claudeRecords.count) recent Claude session(s) from local registry."
-        }
-
-        // Merge discovered Codex sessions.
-        if !payload.discoveredCodexRecords.isEmpty {
-            let mergedSessions = mergeDiscoveredSessions(payload.discoveredCodexRecords.map(\.session))
-            state = SessionState(sessions: mergedSessions)
-            synchronizeSelection()
-            refreshOverlayPlacementIfVisible()
-            scheduleCodexSessionPersistence()
-            lastActionMessage = "Discovered \(payload.discoveredCodexRecords.count) recent Codex session(s) from local rollouts."
-        }
-
-        // Merge discovered Claude sessions.
-        if !payload.discoveredClaudeSessions.isEmpty {
-            let mergedSessions = mergeDiscoveredSessions(payload.discoveredClaudeSessions)
-            state = SessionState(sessions: mergedSessions)
-            synchronizeSelection()
-            refreshOverlayPlacementIfVisible()
-            scheduleClaudeSessionPersistence()
-            lastActionMessage = "Discovered \(payload.discoveredClaudeSessions.count) recent Claude session(s) from local transcripts."
-        }
+    private func applyStartupDiscoveryPayload(_ payload: SessionDiscoveryCoordinator.StartupDiscoveryPayload) {
+        discovery.applyStartupDiscoveryPayload(payload)
 
         // Apply hooks binary URL.
         hooks.hooksBinaryURL = payload.hooksBinaryURL
@@ -1043,207 +958,8 @@ final class AppModel {
         // Reconcile attachments and start monitoring (requires sessions to be loaded).
         reconcileSessionAttachments()
         startSessionAttachmentMonitoringIfNeeded()
-        refreshCodexRolloutTracking()
     }
 
-    private func restorePersistedCodexSessions() {
-        do {
-            let loadedRecords = try codexSessionStore.load()
-            let records = loadedRecords.filter {
-                $0.updatedAt >= Date.now.addingTimeInterval(-86_400) && $0.shouldRestoreToLiveState
-            }
-
-            if records != loadedRecords {
-                try? codexSessionStore.save(records)
-            }
-
-            guard !records.isEmpty else {
-                return
-            }
-
-            state = SessionState(sessions: records.map(\.restorableSession))
-            synchronizeSelection()
-            refreshOverlayPlacementIfVisible()
-            lastActionMessage = "Restored \(records.count) recent Codex session(s) from local cache."
-        } catch {
-            lastActionMessage = "Failed to restore Codex session cache: \(error.localizedDescription)"
-        }
-    }
-
-    private func restorePersistedClaudeSessions() {
-        do {
-            let loadedRecords = try claudeSessionRegistry.load()
-            let records = loadedRecords.filter {
-                $0.updatedAt >= Date.now.addingTimeInterval(-86_400) && $0.shouldRestoreToLiveState
-            }
-
-            if records != loadedRecords {
-                try? claudeSessionRegistry.save(records)
-            }
-
-            guard !records.isEmpty else {
-                return
-            }
-
-            let restoredSessions = records.map(\.restorableSession)
-            state = SessionState(sessions: mergeDiscoveredSessions(restoredSessions))
-            synchronizeSelection()
-            refreshOverlayPlacementIfVisible()
-            lastActionMessage = "Restored \(records.count) recent Claude session(s) from local registry."
-        } catch {
-            lastActionMessage = "Failed to restore Claude session registry: \(error.localizedDescription)"
-        }
-    }
-
-    private func discoverRecentCodexSessions() {
-        let records = codexRolloutDiscovery.discoverRecentSessions()
-        guard !records.isEmpty else {
-            return
-        }
-
-        let mergedSessions = mergeDiscoveredSessions(records.map(\.session))
-        state = SessionState(sessions: mergedSessions)
-        synchronizeSelection()
-        refreshOverlayPlacementIfVisible()
-        scheduleCodexSessionPersistence()
-        lastActionMessage = "Discovered \(records.count) recent Codex session(s) from local rollouts."
-    }
-
-    private func discoverRecentClaudeSessions() {
-        let sessions = claudeTranscriptDiscovery.discoverRecentSessions()
-        guard !sessions.isEmpty else {
-            return
-        }
-
-        let mergedSessions = mergeDiscoveredSessions(sessions)
-        state = SessionState(sessions: mergedSessions)
-        synchronizeSelection()
-        refreshOverlayPlacementIfVisible()
-        scheduleClaudeSessionPersistence()
-        lastActionMessage = "Discovered \(sessions.count) recent Claude session(s) from local transcripts."
-    }
-
-    private func refreshCodexRolloutTracking() {
-        let targets = state.sessions.compactMap { session -> CodexRolloutWatchTarget? in
-            guard session.tool == .codex,
-                  let transcriptPath = session.codexMetadata?.transcriptPath,
-                  !transcriptPath.isEmpty else {
-                return nil
-            }
-
-            return CodexRolloutWatchTarget(
-                sessionID: session.id,
-                transcriptPath: transcriptPath
-            )
-        }
-
-        codexRolloutWatcher.sync(targets: targets)
-    }
-
-    func mergeDiscoveredSessions(_ discoveredSessions: [AgentSession]) -> [AgentSession] {
-        var mergedByID = Dictionary(uniqueKeysWithValues: state.sessions.map { ($0.id, $0) })
-
-        for discovered in discoveredSessions {
-            if let existing = mergedByID[discovered.id] {
-                mergedByID[discovered.id] = merge(discovered: discovered, into: existing)
-            } else if let existingID = existingSessionID(matchingTranscriptOf: discovered, in: mergedByID) {
-                mergedByID[existingID] = merge(discovered: discovered, into: mergedByID[existingID]!)
-            } else {
-                mergedByID[discovered.id] = discovered
-            }
-        }
-
-        return Array(mergedByID.values)
-    }
-
-    private func existingSessionID(
-        matchingTranscriptOf discovered: AgentSession,
-        in sessions: [String: AgentSession]
-    ) -> String? {
-        guard let discoveredPath = discovered.claudeMetadata?.transcriptPath,
-              !discoveredPath.isEmpty else {
-            return nil
-        }
-
-        return sessions.first(where: {
-            $0.value.claudeMetadata?.transcriptPath == discoveredPath
-        })?.key
-    }
-
-    private func merge(discovered: AgentSession, into existing: AgentSession) -> AgentSession {
-        var merged = existing
-        let discoveredIsNewer = discovered.updatedAt >= existing.updatedAt
-
-        if discoveredIsNewer {
-            merged.title = discovered.title
-            merged.phase = discovered.phase
-            merged.summary = discovered.summary
-            merged.updatedAt = discovered.updatedAt
-            merged.permissionRequest = discovered.permissionRequest
-            merged.questionPrompt = discovered.questionPrompt
-        }
-
-        merged.origin = existing.origin ?? discovered.origin
-        merged.attachmentState = mergeAttachmentState(existing.attachmentState, discovered.attachmentState)
-        merged.jumpTarget = existing.jumpTarget ?? discovered.jumpTarget
-        merged.codexMetadata = mergeCodexMetadata(existing.codexMetadata, discovered.codexMetadata)
-        merged.claudeMetadata = mergeClaudeMetadata(existing.claudeMetadata, discovered.claudeMetadata)
-
-        return merged
-    }
-
-    private func mergeCodexMetadata(
-        _ existing: CodexSessionMetadata?,
-        _ discovered: CodexSessionMetadata?
-    ) -> CodexSessionMetadata? {
-        guard let existing else {
-            return discovered?.isEmpty == true ? nil : discovered
-        }
-
-        guard let discovered else {
-            return existing.isEmpty ? nil : existing
-        }
-
-        let merged = CodexSessionMetadata(
-            transcriptPath: discovered.transcriptPath ?? existing.transcriptPath,
-            initialUserPrompt: existing.initialUserPrompt ?? discovered.initialUserPrompt ?? discovered.lastUserPrompt,
-            lastUserPrompt: discovered.lastUserPrompt ?? existing.lastUserPrompt,
-            lastAssistantMessage: discovered.lastAssistantMessage ?? existing.lastAssistantMessage,
-            currentTool: discovered.currentTool ?? existing.currentTool,
-            currentCommandPreview: discovered.currentCommandPreview ?? existing.currentCommandPreview
-        )
-        return merged.isEmpty ? nil : merged
-    }
-
-    private func mergeClaudeMetadata(
-        _ existing: ClaudeSessionMetadata?,
-        _ discovered: ClaudeSessionMetadata?
-    ) -> ClaudeSessionMetadata? {
-        guard let existing else {
-            return discovered?.isEmpty == true ? nil : discovered
-        }
-
-        guard let discovered else {
-            return existing.isEmpty ? nil : existing
-        }
-
-        let merged = ClaudeSessionMetadata(
-            transcriptPath: discovered.transcriptPath ?? existing.transcriptPath,
-            initialUserPrompt: existing.initialUserPrompt ?? discovered.initialUserPrompt ?? discovered.lastUserPrompt,
-            lastUserPrompt: discovered.lastUserPrompt ?? existing.lastUserPrompt,
-            lastAssistantMessage: discovered.lastAssistantMessage ?? existing.lastAssistantMessage,
-            currentTool: discovered.currentTool ?? existing.currentTool,
-            currentToolInputPreview: discovered.currentToolInputPreview ?? existing.currentToolInputPreview,
-            model: discovered.model ?? existing.model,
-            startupSource: discovered.startupSource ?? existing.startupSource,
-            permissionMode: discovered.permissionMode ?? existing.permissionMode,
-            agentID: discovered.agentID ?? existing.agentID,
-            agentType: discovered.agentType ?? existing.agentType,
-            worktreeBranch: discovered.worktreeBranch ?? existing.worktreeBranch,
-            activeSubagents: existing.activeSubagents.isEmpty ? discovered.activeSubagents : existing.activeSubagents
-        )
-        return merged.isEmpty ? nil : merged
-    }
 
     private func dismissOverlayForJump() {
         guard isOverlayVisible else {
@@ -1479,8 +1195,8 @@ final class AppModel {
         }
         synchronizeSelection()
         refreshOverlayPlacementIfVisible()
-        scheduleCodexSessionPersistence()
-        scheduleClaudeSessionPersistence()
+        discovery.scheduleCodexSessionPersistence()
+        discovery.scheduleClaudeSessionPersistence()
     }
 
     func sanitizeCrossToolGhosttyJumpTargets(in sessions: [AgentSession]) -> [AgentSession] {
@@ -1605,53 +1321,6 @@ final class AppModel {
         return aliveIDs
     }
 
-    private func mergeAttachmentState(
-        _ existing: SessionAttachmentState,
-        _ discovered: SessionAttachmentState
-    ) -> SessionAttachmentState {
-        switch (existing, discovered) {
-        case (.attached, _), (_, .attached):
-            .attached
-        case (.stale, _), (_, .stale):
-            .stale
-        case (.detached, .detached):
-            .detached
-        }
-    }
-
-    private func scheduleCodexSessionPersistence() {
-        codexSessionPersistenceTask?.cancel()
-
-        let records = state.sessions
-            .filter { $0.isTrackedLiveCodexSession && $0.updatedAt >= Date.now.addingTimeInterval(-86_400) }
-            .map(CodexTrackedSessionRecord.init(session:))
-        let store = codexSessionStore
-
-        codexSessionPersistenceTask = Task.detached(priority: .utility) {
-            try? await Task.sleep(for: .milliseconds(250))
-            try? store.save(records)
-        }
-    }
-
-    private func scheduleClaudeSessionPersistence() {
-        claudeSessionPersistenceTask?.cancel()
-
-        let records = state.sessions
-            .filter {
-                $0.tool == .claudeCode
-                    && $0.isTrackedLiveSession
-                    && !$0.id.hasPrefix(Self.syntheticClaudeSessionPrefix)
-                    && $0.updatedAt >= Date.now.addingTimeInterval(-86_400)
-                    && ($0.jumpTarget != nil || $0.claudeMetadata?.transcriptPath != nil)
-            }
-            .map(ClaudeTrackedSessionRecord.init(session:))
-        let registry = claudeSessionRegistry
-
-        claudeSessionPersistenceTask = Task.detached(priority: .utility) {
-            try? await Task.sleep(for: .milliseconds(250))
-            try? registry.save(records)
-        }
-    }
 
     func mergedWithSyntheticClaudeSessions(
         existingSessions: [AgentSession],
