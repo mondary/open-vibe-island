@@ -1,6 +1,22 @@
-# Open Island
+<p align="center">
+  <img src="Assets/Brand/app-icon-cat.png" alt="Open Island" width="128" height="128">
+</p>
 
-[中文](README.zh-CN.md) | **English**
+<h1 align="center">Open Island</h1>
+
+<p align="center">
+  The open-source macOS companion for AI coding agents.
+  <br>
+  <a href="README.zh-CN.md">中文</a> | <strong>English</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Octane0411/open-vibe-island/releases">Releases</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
+
+---
 
 ## Human Parts
 
