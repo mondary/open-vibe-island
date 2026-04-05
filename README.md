@@ -8,7 +8,7 @@ This section is written for humans.
 
 ### What This Is
 
-An open-source [Vibe Island](https://vibeisland.app/) alternative for heavy code-agent users on macOS. Currently supports **Claude Code** and **Codex**, with terminal integration for **Terminal.app**, **Ghostty**, and fallback detection for iTerm2, Warp, WezTerm, and cmux.
+An open-source [Vibe Island](https://vibeisland.app/) alternative for heavy code-agent users on macOS. Currently supports **Claude Code** and **Codex**, with terminal integration for **Terminal.app**, **Ghostty**, and **cmux**, plus fallback detection for iTerm2, Warp, and WezTerm.
 
 ### Motivation
 
@@ -73,8 +73,8 @@ Developers who already live in the terminal and want a better way to work with c
 
 ### Terminal Support
 
-- **Terminal.app** and **Ghostty** — Full jump-back support with session attachment matching
-- **iTerm2, Warp, WezTerm, cmux** — Fallback detection and basic process discovery
+- **Terminal.app**, **Ghostty**, and **cmux** — Full jump-back support with session attachment matching (cmux via Unix socket API)
+- **iTerm2, Warp, WezTerm** — Fallback detection and basic process discovery
 
 ### UI & Display
 
