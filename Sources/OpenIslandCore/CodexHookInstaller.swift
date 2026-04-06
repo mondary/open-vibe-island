@@ -60,12 +60,11 @@ public enum CodexHookInstaller {
     public static let legacyManagedStatusMessage = "Managed by Vibe Island"
     public static let managedTimeout = 45
 
-    // Keep the managed Codex install aligned with the original app's low-noise footprint.
-    // The bridge still understands richer hook events, but we do not install them by default
-    // because per-command Bash hooks produce a large amount of terminal log spam.
     private static let eventSpecs: [(name: String, matcher: String?)] = [
         ("SessionStart", "startup|resume"),
         ("UserPromptSubmit", nil),
+        ("PreToolUse", nil),
+        ("PostToolUse", nil),
         ("Stop", nil),
     ]
 
