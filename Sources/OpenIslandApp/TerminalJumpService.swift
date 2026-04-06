@@ -45,6 +45,11 @@ struct TerminalJumpService {
             bundleIdentifier: "com.github.wez.wezterm",
             aliases: ["wezterm"]
         ),
+        TerminalAppDescriptor(
+            displayName: "Kaku",
+            bundleIdentifier: "fun.tw93.kaku",
+            aliases: ["kaku"]
+        ),
     ]
 
     private static let ghosttyFocusSettleDelay = 0.08
@@ -100,6 +105,11 @@ struct TerminalJumpService {
             case "com.apple.Terminal":
                 if try jumpToTerminalTab(target) {
                     return "Focused the matching Terminal tab."
+                }
+            case "fun.tw93.kaku", "com.github.wez.wezterm":
+                if let cliName = weztermFamilyCLIName(for: descriptor.bundleIdentifier),
+                   jumpToWeztermFamilyTerminal(target, cli: cliName, bundleIdentifier: descriptor.bundleIdentifier) {
+                    return "Focused the matching \(descriptor.displayName) pane."
                 }
             default:
                 break
@@ -380,6 +390,120 @@ struct TerminalJumpService {
         """
 
         return try runAppleScript(script) == "matched"
+    }
+
+    // MARK: - WezTerm-family (Kaku / WezTerm) CLI-based jump
+
+    private func weztermFamilyCLIName(for bundleIdentifier: String) -> String? {
+        switch bundleIdentifier {
+        case "fun.tw93.kaku": return "kaku"
+        case "com.github.wez.wezterm": return "wezterm"
+        default: return nil
+        }
+    }
+
+    private func jumpToWeztermFamilyTerminal(
+        _ target: JumpTarget,
+        cli: String,
+        bundleIdentifier: String
+    ) -> Bool {
+        guard let panes = weztermFamilyListPanes(cli: cli) else {
+            return false
+        }
+
+        // Match by pane_id (stored in terminalSessionID).
+        if let sessionID = target.terminalSessionID,
+           let paneID = Int(sessionID),
+           panes.contains(where: { $0.paneID == paneID }) {
+            if weztermFamilyActivatePane(cli: cli, paneID: paneID) {
+                try? openAction(["-b", bundleIdentifier])
+                return true
+            }
+        }
+
+        // Match by working directory.
+        if let targetCWD = target.workingDirectory {
+            let normalizedTarget = URL(fileURLWithPath: targetCWD).standardizedFileURL.path
+            if let matched = panes.first(where: {
+                let paneCWD = $0.cwd.hasPrefix("file://") ? String($0.cwd.dropFirst(7)) : $0.cwd
+                return URL(fileURLWithPath: paneCWD).standardizedFileURL.path == normalizedTarget
+            }) {
+                if weztermFamilyActivatePane(cli: cli, paneID: matched.paneID) {
+                    try? openAction(["-b", bundleIdentifier])
+                    return true
+                }
+            }
+        }
+
+        // Match by title.
+        if !target.paneTitle.isEmpty {
+            if let matched = panes.first(where: { $0.title.contains(target.paneTitle) }) {
+                if weztermFamilyActivatePane(cli: cli, paneID: matched.paneID) {
+                    try? openAction(["-b", bundleIdentifier])
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
+    struct WeztermFamilyPane: Decodable {
+        let windowID: Int
+        let tabID: Int
+        let paneID: Int
+        let title: String
+        let cwd: String
+        let ttyName: String?
+        let isActive: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case windowID = "window_id"
+            case tabID = "tab_id"
+            case paneID = "pane_id"
+            case title
+            case cwd
+            case ttyName = "tty_name"
+            case isActive = "is_active"
+        }
+    }
+
+    private func weztermFamilyListPanes(cli: String) -> [WeztermFamilyPane]? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        task.arguments = [cli, "cli", "list", "--format", "json"]
+
+        let outputPipe = Pipe()
+        task.standardOutput = outputPipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch {
+            return nil
+        }
+
+        guard task.terminationStatus == 0 else { return nil }
+
+        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        return try? JSONDecoder().decode([WeztermFamilyPane].self, from: data)
+    }
+
+    private func weztermFamilyActivatePane(cli: String, paneID: Int) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        task.arguments = [cli, "cli", "activate-pane", "--pane-id", "\(paneID)"]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+            return task.terminationStatus == 0
+        } catch {
+            return false
+        }
     }
 
     private func resolveTerminalApp(preferredName: String) -> TerminalAppDescriptor? {

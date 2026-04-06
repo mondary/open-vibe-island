@@ -22,6 +22,13 @@ struct TerminalJumpTargetResolver {
         var customTitle: String
     }
 
+    struct WeztermFamilySnapshot: Sendable {
+        var paneID: Int
+        var workingDirectory: String
+        var title: String
+        var ttyName: String?
+    }
+
     private static let appleScriptTimeout: TimeInterval = 3
     private static let fieldSeparator = "\u{1F}"
     private static let recordSeparator = "\u{1E}"
@@ -38,6 +45,10 @@ struct TerminalJumpTargetResolver {
 
         let ghosttySessions = sessions.filter { normalizedTerminalName(for: $0.jumpTarget?.terminalApp) == "ghostty" }
         let terminalSessions = sessions.filter { normalizedTerminalName(for: $0.jumpTarget?.terminalApp) == "terminal" }
+        let weztermFamilySessions = sessions.filter {
+            let name = normalizedTerminalName(for: $0.jumpTarget?.terminalApp)
+            return name == "kaku" || name == "wezterm"
+        }
 
         var jumpTargetUpdates: [String: JumpTarget] = [:]
 
@@ -54,6 +65,24 @@ struct TerminalJumpTargetResolver {
                     if let session = sessions.first(where: { $0.id == sessionID }),
                        let corrected = correctedGhosttyJumpTarget(for: session, snapshot: snapshot) {
                         jumpTargetUpdates[sessionID] = corrected
+                    }
+                }
+            }
+        }
+
+        // WezTerm-family (Kaku / WezTerm): match sessions to CLI snapshots.
+        if !weztermFamilySessions.isEmpty {
+            for session in weztermFamilySessions {
+                let terminalName = normalizedTerminalName(for: session.jumpTarget?.terminalApp) ?? ""
+                let cli = terminalName == "kaku" ? "kaku" : "wezterm"
+                if let snapshots = fetchWeztermFamilySnapshots(cli: cli) {
+                    let matched = matchWeztermFamilySnapshots(snapshots, to: [session])
+                    for (sessionID, snapshot) in matched {
+                        if let corrected = correctedWeztermFamilyJumpTarget(
+                            for: session, snapshot: snapshot, terminalName: terminalName
+                        ) {
+                            jumpTargetUpdates[sessionID] = corrected
+                        }
                     }
                 }
             }
@@ -229,6 +258,167 @@ struct TerminalJumpTargetResolver {
         }
 
         return changed ? jumpTarget : nil
+    }
+
+    // MARK: - WezTerm-family matching
+
+    private func matchWeztermFamilySnapshots(
+        _ snapshots: [WeztermFamilySnapshot],
+        to sessions: [AgentSession]
+    ) -> [String: WeztermFamilySnapshot] {
+        var assignments: [String: WeztermFamilySnapshot] = [:]
+
+        // Pass 1: pane ID match via terminalSessionID.
+        for snapshot in snapshots {
+            if let session = sessions.first(where: {
+                assignments[$0.id] == nil
+                    && nonEmptyValue($0.jumpTarget?.terminalSessionID) == "\(snapshot.paneID)"
+            }) {
+                assignments[session.id] = snapshot
+            }
+        }
+
+        // Pass 2: working directory match.
+        for snapshot in snapshots where !assignments.values.contains(where: { $0.paneID == snapshot.paneID }) {
+            let snapshotCWD = normalizedPathForMatching(
+                snapshot.workingDirectory.hasPrefix("file://")
+                    ? String(snapshot.workingDirectory.dropFirst(7))
+                    : snapshot.workingDirectory
+            )
+            if let session = sessions.first(where: {
+                assignments[$0.id] == nil
+                    && snapshotCWD != nil
+                    && normalizedPathForMatching($0.jumpTarget?.workingDirectory) == snapshotCWD
+            }) {
+                assignments[session.id] = snapshot
+            }
+        }
+
+        // Pass 3: title match.
+        for snapshot in snapshots where !assignments.values.contains(where: { $0.paneID == snapshot.paneID }) {
+            if let session = sessions.first(where: {
+                assignments[$0.id] == nil
+                    && nonEmptyValue($0.jumpTarget?.paneTitle).map { snapshot.title.contains($0) } == true
+            }) {
+                assignments[session.id] = snapshot
+            }
+        }
+
+        return assignments
+    }
+
+    private func correctedWeztermFamilyJumpTarget(
+        for session: AgentSession,
+        snapshot: WeztermFamilySnapshot,
+        terminalName: String
+    ) -> JumpTarget? {
+        let displayName = terminalName == "kaku" ? "Kaku" : "WezTerm"
+        let cwd = snapshot.workingDirectory.hasPrefix("file://")
+            ? String(snapshot.workingDirectory.dropFirst(7))
+            : snapshot.workingDirectory
+        let hadExistingJumpTarget = session.jumpTarget != nil
+        var jumpTarget = session.jumpTarget ?? JumpTarget(
+            terminalApp: displayName,
+            workspaceName: URL(fileURLWithPath: cwd).lastPathComponent,
+            paneTitle: snapshot.title,
+            workingDirectory: cwd,
+            terminalSessionID: "\(snapshot.paneID)"
+        )
+
+        var changed = !hadExistingJumpTarget
+
+        if normalizedTerminalName(for: jumpTarget.terminalApp) != terminalName {
+            jumpTarget.terminalApp = displayName
+            changed = true
+        }
+
+        if nonEmptyValue(jumpTarget.terminalSessionID) != "\(snapshot.paneID)" {
+            jumpTarget.terminalSessionID = "\(snapshot.paneID)"
+            changed = true
+        }
+
+        if nonEmptyValue(jumpTarget.workingDirectory) != cwd {
+            jumpTarget.workingDirectory = cwd
+            changed = true
+        }
+
+        if let title = nonEmptyValue(snapshot.title), title != jumpTarget.paneTitle {
+            jumpTarget.paneTitle = title
+            changed = true
+        }
+
+        if let tty = nonEmptyValue(snapshot.ttyName), tty != jumpTarget.terminalTTY {
+            jumpTarget.terminalTTY = tty
+            changed = true
+        }
+
+        let workspaceName = URL(fileURLWithPath: cwd).lastPathComponent
+        if !workspaceName.isEmpty, workspaceName != jumpTarget.workspaceName {
+            jumpTarget.workspaceName = workspaceName
+            changed = true
+        }
+
+        return changed ? jumpTarget : nil
+    }
+
+    // MARK: - WezTerm-family CLI fetching
+
+    private func fetchWeztermFamilySnapshots(cli: String) -> [WeztermFamilySnapshot]? {
+        let bundleID = cli == "kaku" ? "fun.tw93.kaku" : "com.github.wez.wezterm"
+        guard isRunning(bundleIdentifier: bundleID) else {
+            return []
+        }
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        task.arguments = [cli, "cli", "list", "--format", "json"]
+
+        let outputPipe = Pipe()
+        task.standardOutput = outputPipe
+        task.standardError = FileHandle.nullDevice
+
+        let completionGroup = DispatchGroup()
+        completionGroup.enter()
+        task.terminationHandler = { _ in
+            completionGroup.leave()
+        }
+
+        do {
+            try task.run()
+        } catch {
+            return nil
+        }
+
+        let waitResult = completionGroup.wait(timeout: .now() + Self.appleScriptTimeout)
+        if waitResult == .timedOut {
+            task.terminate()
+            _ = completionGroup.wait(timeout: .now() + 0.2)
+            return nil
+        }
+
+        guard task.terminationStatus == 0 else { return nil }
+
+        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+
+        struct CLIPane: Decodable {
+            let pane_id: Int
+            let title: String
+            let cwd: String
+            let tty_name: String?
+        }
+
+        guard let panes = try? JSONDecoder().decode([CLIPane].self, from: data) else {
+            return nil
+        }
+
+        return panes.map { pane in
+            WeztermFamilySnapshot(
+                paneID: pane.pane_id,
+                workingDirectory: pane.cwd,
+                title: pane.title,
+                ttyName: pane.tty_name
+            )
+        }
     }
 
     // MARK: - AppleScript fetching
