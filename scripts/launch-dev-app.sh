@@ -87,7 +87,7 @@ cat > "$plist_path" <<EOF
     <key>SUFeedURL</key>
     <string>https://raw.githubusercontent.com/Octane0411/open-vibe-island/main/appcast.xml</string>
     <key>SUPublicEDKey</key>
-    <string></string>
+    <string>3IF8txq9RRNanzE2FNhyGRcwhslTucCcJHpTkpxcgBQ=</string>
 </dict>
 </plist>
 EOF

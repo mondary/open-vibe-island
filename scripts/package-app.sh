@@ -105,7 +105,7 @@ cat > "$bundle_dir/Contents/Info.plist" <<EOF
     <key>SUFeedURL</key>
     <string>https://raw.githubusercontent.com/Octane0411/open-vibe-island/main/appcast.xml</string>
     <key>SUPublicEDKey</key>
-    <string>${OPEN_ISLAND_EDDSA_PUBLIC_KEY:-}</string>
+    <string>${OPEN_ISLAND_EDDSA_PUBLIC_KEY:-3IF8txq9RRNanzE2FNhyGRcwhslTucCcJHpTkpxcgBQ=}</string>
 </dict>
 </plist>
 EOF
