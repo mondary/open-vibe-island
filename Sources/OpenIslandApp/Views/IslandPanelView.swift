@@ -244,7 +244,6 @@ struct IslandPanelView: View {
                 openedContent
                     .frame(width: openedWidth - 24)
                     .frame(maxHeight: isOpened ? currentHeight - closedNotchHeight - 12 : 0, alignment: .top)
-                    .opacity(isOpened ? 1 : 0)
                     .clipped()
             }
             .frame(width: currentWidth, height: currentHeight, alignment: .top)
