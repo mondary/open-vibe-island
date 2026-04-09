@@ -368,6 +368,8 @@ struct AppModelSessionListTests {
 
         model.notchClose()
 
+        // State changes immediately; close should not leave any pending
+        // window-shrink state behind.
         #expect(model.notchStatus == .closed)
         #expect(model.notchOpenReason == nil)
         #expect(!model.isOverlayCloseTransitionPending)

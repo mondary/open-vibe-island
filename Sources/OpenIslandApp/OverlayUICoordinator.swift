@@ -135,11 +135,11 @@ final class OverlayUICoordinator {
     /// SwiftUI has rendering space. Close starts the SwiftUI state change and
     /// then asks AppKit to animate the panel frame closed right away.
     ///
-    /// **Open**: expand the panel first so SwiftUI has full rendering space,
-    /// then set state to trigger the SwiftUI animation.
+    /// **Open**: expand the panel frame instantly, then set state so SwiftUI
+    /// animates content from closed → opened inside the already-large panel.
     ///
-    /// **Close**: set state first so SwiftUI starts the close animation inside
-    /// the still-large panel, then shrink the panel after the animation ends.
+    /// **Close**: switch state immediately, then animate the NSPanel frame to
+    /// the closed geometry without holding the window open first.
     private func transitionOverlay(
         to status: NotchStatus,
         reason: NotchOpenReason?,
