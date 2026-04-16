@@ -25,6 +25,10 @@ final class ProcessMonitoringCoordinator {
     @ObservationIgnored
     var onPersistenceNeeded: (() -> Void)?
 
+    /// Fires when Codex.app is detected as running / no longer running.
+    @ObservationIgnored
+    var onCodexAppRunningChanged: ((_ isRunning: Bool) -> Void)?
+
     @ObservationIgnored
     let activeAgentProcessDiscovery = ActiveAgentProcessDiscovery()
 
@@ -36,6 +40,9 @@ final class ProcessMonitoringCoordinator {
 
     @ObservationIgnored
     private var sessionAttachmentMonitorTask: Task<Void, Never>?
+
+    @ObservationIgnored
+    private var wasCodexAppRunning = false
 
     private var state: SessionState {
         get { stateAccessor?() ?? SessionState() }
@@ -148,6 +155,15 @@ final class ProcessMonitoringCoordinator {
         // Phase 1: populate isProcessAlive in parallel with existing system.
         let aliveIDs = sessionIDsWithAliveProcesses(activeProcesses: activeProcesses)
         _ = local.markProcessLiveness(aliveSessionIDs: aliveIDs)
+
+        // Notify when Codex.app running state changes.
+        let isCodexAppRunning = !NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.openai.codex"
+        ).isEmpty
+        if isCodexAppRunning != wasCodexAppRunning {
+            wasCodexAppRunning = isCodexAppRunning
+            onCodexAppRunningChanged?(isCodexAppRunning)
+        }
 
         // Resolve jump targets via the new focused resolver.
         // When pre-resolved targets are provided (computed off-main-actor),

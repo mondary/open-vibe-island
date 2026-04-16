@@ -325,6 +325,64 @@ final class SessionDiscoveryCoordinator {
         codexRolloutWatcher.sync(targets: targets)
     }
 
+    // MARK: - Codex.app periodic re-discovery
+
+    @ObservationIgnored
+    private var lastCodexAppRescanDate: Date = .distantPast
+
+    /// Re-scan `~/.codex/sessions/` for rollout files not yet tracked.
+    /// Called periodically when Codex.app is running as a fallback when
+    /// the app-server connection is unavailable.  Throttled to at most
+    /// once per 10 seconds.
+    func rediscoverCodexAppSessionsIfNeeded() {
+        let now = Date.now
+        guard now.timeIntervalSince(lastCodexAppRescanDate) >= 10 else { return }
+        lastCodexAppRescanDate = now
+
+        let discovery = codexRolloutDiscovery
+        Task.detached(priority: .utility) { [weak self] in
+            let discovered = discovery.discoverRecentSessions()
+            guard !discovered.isEmpty else { return }
+            await MainActor.run { [weak self] in
+                self?.applyCodexAppRediscovery(discovered)
+            }
+        }
+    }
+
+    private func applyCodexAppRediscovery(_ records: [CodexTrackedSessionRecord]) {
+        let existingIDs = Set(state.sessions.filter { $0.tool == .codex }.map(\.id))
+        let existingPaths = Set(state.sessions.compactMap(\.codexMetadata?.transcriptPath))
+
+        let newRecords = records.filter { record in
+            !existingIDs.contains(record.sessionID)
+                && (record.codexMetadata?.transcriptPath).map { !existingPaths.contains($0) } ?? true
+        }
+        guard !newRecords.isEmpty else { return }
+
+        let newSessions = newRecords.map { record -> AgentSession in
+            var session = record.session
+            session.isCodexAppSession = true
+            session.isProcessAlive = true
+            if session.jumpTarget == nil {
+                let cwd = session.jumpTarget?.workingDirectory ?? ""
+                session.jumpTarget = JumpTarget(
+                    terminalApp: "Codex.app",
+                    workspaceName: URL(fileURLWithPath: cwd).lastPathComponent,
+                    paneTitle: session.title
+                )
+            } else {
+                session.jumpTarget?.terminalApp = "Codex.app"
+            }
+            return session
+        }
+
+        let merged = mergeDiscoveredSessions(newSessions)
+        state = SessionState(sessions: merged)
+        refreshCodexRolloutTracking()
+        scheduleCodexSessionPersistence()
+        onStatusMessage?("Discovered \(newRecords.count) new Codex.app session(s) via rollout re-scan.")
+    }
+
     // MARK: - Persistence scheduling
 
     func scheduleCodexSessionPersistence() {

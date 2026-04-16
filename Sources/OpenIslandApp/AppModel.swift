@@ -51,6 +51,7 @@ final class AppModel {
     let overlay = OverlayUICoordinator()
     let discovery = SessionDiscoveryCoordinator()
     let monitoring = ProcessMonitoringCoordinator()
+    let codexAppServer = CodexAppServerCoordinator()
     let updateChecker = UpdateChecker()
 
     var notchStatus: NotchStatus {
@@ -530,6 +531,13 @@ final class AppModel {
             }
         }
 
+        codexAppServer.onEvent = { [weak self] event in
+            self?.applyTrackedEvent(event, ingress: .bridge)
+        }
+        codexAppServer.onStatusMessage = { [weak self] message in
+            self?.lastActionMessage = message
+        }
+
         monitoring.syntheticClaudeSessionPrefix = Self.syntheticClaudeSessionPrefix
         monitoring.stateAccessor = { [weak self] in self?.state ?? SessionState() }
         monitoring.stateUpdater = { [weak self] in self?.state = $0 }
@@ -541,6 +549,17 @@ final class AppModel {
             self?.discovery.scheduleCodexSessionPersistence()
             self?.discovery.scheduleClaudeSessionPersistence()
             self?.discovery.scheduleCursorSessionPersistence()
+        }
+        monitoring.onCodexAppRunningChanged = { [weak self] isRunning in
+            guard let self else { return }
+            if isRunning {
+                self.codexAppServer.ensureConnected()
+                // Also trigger periodic re-scan as fallback in case
+                // app-server connection fails.
+                self.discovery.rediscoverCodexAppSessionsIfNeeded()
+            } else {
+                self.codexAppServer.disconnect()
+            }
         }
 
         refreshOverlayDisplayConfiguration()
