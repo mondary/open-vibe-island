@@ -323,7 +323,10 @@ public struct SessionState: Equatable, Sendable {
     /// Update process liveness for all tracked sessions based on process discovery.
     /// Returns the set of session IDs whose `isProcessAlive` changed.
     @discardableResult
-    public mutating func markProcessLiveness(aliveSessionIDs: Set<String>) -> Set<String> {
+    public mutating func markProcessLiveness(
+        aliveSessionIDs: Set<String>,
+        isCodexAppRunning: Bool = false
+    ) -> Set<String> {
         var changed: Set<String> = []
 
         for (id, var session) in sessionsByID {
@@ -355,6 +358,16 @@ public struct SessionState: Equatable, Sendable {
             // cleaned up.
             if session.isHookManaged {
                 if session.isSessionEnded {
+                    continue
+                }
+
+                // When a Codex session reached .completed via hooks (.stop)
+                // and Codex.app is still running, don't kill it through
+                // process polling — the CLI subprocess exits after each turn
+                // but the desktop app session is still valid.  The session
+                // stays visible as "Completed" and fades via island presence.
+                if session.tool == .codex && session.phase == .completed && isCodexAppRunning {
+                    upsert(session)
                     continue
                 }
 

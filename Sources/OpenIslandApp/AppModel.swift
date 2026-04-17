@@ -554,9 +554,6 @@ final class AppModel {
             guard let self else { return }
             if isRunning {
                 self.codexAppServer.ensureConnected()
-                // Also trigger periodic re-scan as fallback in case
-                // app-server connection fails.
-                self.discovery.rediscoverCodexAppSessionsIfNeeded()
             } else {
                 self.codexAppServer.disconnect()
             }

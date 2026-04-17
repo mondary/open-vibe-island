@@ -152,14 +152,17 @@ final class ProcessMonitoringCoordinator {
         _ = local.reconcileAttachmentStates(attachmentUpdates)
         _ = local.reconcileJumpTargets(jumpTargetUpdates)
 
+        // Detect Codex.app running state — used for both liveness and callback.
+        let isCodexAppRunning = Self.isCodexDesktopAppRunning()
+
         // Phase 1: populate isProcessAlive in parallel with existing system.
         let aliveIDs = sessionIDsWithAliveProcesses(activeProcesses: activeProcesses)
-        _ = local.markProcessLiveness(aliveSessionIDs: aliveIDs)
+        _ = local.markProcessLiveness(
+            aliveSessionIDs: aliveIDs,
+            isCodexAppRunning: isCodexAppRunning
+        )
 
         // Notify when Codex.app running state changes.
-        let isCodexAppRunning = !NSRunningApplication.runningApplications(
-            withBundleIdentifier: "com.openai.codex"
-        ).isEmpty
         if isCodexAppRunning != wasCodexAppRunning {
             wasCodexAppRunning = isCodexAppRunning
             onCodexAppRunningChanged?(isCodexAppRunning)
@@ -266,14 +269,10 @@ final class ProcessMonitoringCoordinator {
                 .compactMap(\.sessionID)
         )
         // Codex.app sessions: keep alive while the desktop app is running.
-        let isCodexAppRunning = !NSRunningApplication.runningApplications(
-            withBundleIdentifier: "com.openai.codex"
-        ).isEmpty
+        let isCodexAppRunning = Self.isCodexDesktopAppRunning()
         for session in sessions where session.tool == .codex && !session.isDemoSession {
             if session.isCodexAppSession {
-                if isCodexAppRunning {
-                    aliveIDs.insert(session.id)
-                }
+                if isCodexAppRunning { aliveIDs.insert(session.id) }
             } else if codexProcessIDs.contains(session.id) {
                 aliveIDs.insert(session.id)
             }
@@ -748,6 +747,19 @@ final class ProcessMonitoringCoordinator {
     }
 
     // MARK: - Utilities
+
+    /// Check whether Codex.app is currently running.  Uses
+    /// `NSWorkspace.shared.runningApplications` directly because
+    /// `NSRunningApplication.runningApplications(withBundleIdentifier:)`
+    /// has been observed to intermittently return an empty array even
+    /// when the app is running (likely a brief indexing window after
+    /// app launch / conversation switch), which would cause Open Island
+    /// to incorrectly kill visible Codex sessions.
+    static func isCodexDesktopAppRunning() -> Bool {
+        NSWorkspace.shared.runningApplications.contains { app in
+            app.bundleIdentifier == "com.openai.codex"
+        }
+    }
 
     private func processIdentityKey(_ process: ActiveProcessSnapshot) -> String {
         [

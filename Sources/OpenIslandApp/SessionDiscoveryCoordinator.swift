@@ -207,6 +207,10 @@ final class SessionDiscoveryCoordinator {
         merged.codexMetadata = mergeCodexMetadata(existing.codexMetadata, discovered.codexMetadata)
         merged.claudeMetadata = mergeClaudeMetadata(existing.claudeMetadata, discovered.claudeMetadata)
         merged.cursorMetadata = mergeCursorMetadata(existing.cursorMetadata, discovered.cursorMetadata)
+        // Once a session is identified as a Codex.app session by any source
+        // (hook or rediscovery), preserve that flag so liveness uses the
+        // app-level check instead of subprocess polling.
+        merged.isCodexAppSession = existing.isCodexAppSession || discovered.isCodexAppSession
 
         return merged
     }
@@ -313,6 +317,12 @@ final class SessionDiscoveryCoordinator {
             guard session.tool == .codex,
                   let transcriptPath = session.codexMetadata?.transcriptPath,
                   !transcriptPath.isEmpty else {
+                return nil
+            }
+            // Codex.app sessions already get their lifecycle from hooks
+            // (and eventually app-server). The rollout watcher would
+            // duplicate completion notifications and is not needed.
+            if session.isCodexAppSession {
                 return nil
             }
 
