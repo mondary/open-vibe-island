@@ -128,6 +128,21 @@ final class AppModel {
         get { hooks.intentStore.firstLaunchCompleted }
         set { hooks.intentStore.firstLaunchCompleted = newValue }
     }
+
+    /// True if at least one managed hook is currently present on disk.
+    /// Drives the "configure agents" empty-state prompts in the island and
+    /// the settings window.
+    var hasAnyInstalledAgent: Bool {
+        hooks.claudeHooksInstalled
+            || hooks.codexHooksInstalled
+            || hooks.cursorHooksInstalled
+            || hooks.qoderHooksInstalled
+            || hooks.qwenCodeHooksInstalled
+            || hooks.factoryHooksInstalled
+            || hooks.codebuddyHooksInstalled
+            || hooks.openCodePluginInstalled
+            || hooks.geminiHooksInstalled
+    }
     func refreshCodexHookStatus() { hooks.refreshCodexHookStatus() }
     func refreshClaudeHookStatus() { hooks.refreshClaudeHookStatus() }
     func refreshOpenCodePluginStatus() { hooks.refreshOpenCodePluginStatus() }
@@ -920,6 +935,15 @@ final class AppModel {
             window.makeKey()
         }
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Opens the first-run onboarding window. Currently routes to the
+    /// settings window as a fallback — the dedicated window is introduced
+    /// in the next commit (C5). Call sites that want "take me to agent
+    /// setup" should use this instead of `showSettings()` so they pick up
+    /// the real onboarding once it ships.
+    func showOnboarding() {
+        showSettings()
     }
 
     func showControlCenter() {

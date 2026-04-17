@@ -107,6 +107,9 @@
 "setup.permissionsTitle" = "辅助功能";
 "setup.permissionsDesc" = "Open Island 可能需要辅助功能权限来检测终端窗口。请在「系统设置 → 隐私与安全性 → 辅助功能」中授权。";
 "setup.installAll" = "全部安装";
+"setup.banner.noHooks.title" = "开始使用 Open Island";
+"setup.banner.noHooks.message" = "启用 Agent hooks，让 Open Island 监听你的 AI 编码会话。";
+"setup.banner.noHooks.action" = "开始配置";
 "setup.revealConfigLocation" = "在 Finder 中显示配置";
 "setup.section.diagnostics" = "Hooks 诊断";
 "setup.diagnostics.notRun" = "尚未运行健康检查。";
@@ -133,6 +136,8 @@
 "island.noTerminals" = "没有打开的终端会话";
 "island.startAgent" = "在终端中启动编码代理";
 "island.recentSessions" = "最近的会话将保留在控制中心，直到终端重新打开";
+"island.empty.noAgents.title" = "尚未启用任何 Agent 监听";
+"island.empty.noAgents.cta" = "开始配置";
 
 /* Island Panel - Session List */
 "island.showAll" = "显示全部 %lld 个会话";
