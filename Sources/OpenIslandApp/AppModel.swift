@@ -537,6 +537,9 @@ final class AppModel {
         codexAppServer.onStatusMessage = { [weak self] message in
             self?.lastActionMessage = message
         }
+        codexAppServer.isSessionTracked = { [weak self] id in
+            self?.state.session(id: id) != nil
+        }
 
         monitoring.syntheticClaudeSessionPrefix = Self.syntheticClaudeSessionPrefix
         monitoring.stateAccessor = { [weak self] in self?.state ?? SessionState() }

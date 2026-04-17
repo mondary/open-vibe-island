@@ -25,6 +25,12 @@ final class CodexAppServerCoordinator {
     @ObservationIgnored
     var onStatusMessage: ((String) -> Void)?
 
+    /// Returns `true` if a session with the given id is already tracked.
+    /// Used to avoid re-emitting `sessionStarted` (which rebuilds the
+    /// session and wipes richer state from hooks/rediscovery).
+    @ObservationIgnored
+    var isSessionTracked: ((String) -> Bool)?
+
     private(set) var isConnected = false
 
     // MARK: - Public API
@@ -35,8 +41,16 @@ final class CodexAppServerCoordinator {
     func ensureConnected() {
         guard !isConnected, connectTask == nil else { return }
 
-        // Check that the codex binary exists before attempting.
-        let codexPath = "/Applications/Codex.app/Contents/Resources/codex"
+        // Resolve the Codex.app bundle location dynamically — users may
+        // have installed Codex outside `/Applications` (e.g. ~/Applications).
+        guard let bundleURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "com.openai.codex"
+        ) else {
+            return
+        }
+        let codexPath = bundleURL
+            .appendingPathComponent("Contents/Resources/codex")
+            .path
         guard FileManager.default.isExecutableFile(atPath: codexPath) else {
             return
         }
@@ -82,11 +96,17 @@ final class CodexAppServerCoordinator {
         guard let client else { return }
         do {
             let threads = try await client.listLoadedThreads()
+            var created = 0
             for thread in threads where !thread.ephemeral {
+                // Skip threads already tracked — re-emitting sessionStarted
+                // rebuilds the AgentSession and would wipe richer state
+                // already accumulated from hooks or rediscovery.
+                if isSessionTracked?(thread.id) == true { continue }
                 emitSessionStarted(from: thread)
+                created += 1
             }
-            if !threads.isEmpty {
-                onStatusMessage?("Synced \(threads.count) loaded Codex thread(s) from app-server.")
+            if created > 0 {
+                onStatusMessage?("Synced \(created) new Codex thread(s) from app-server.")
             }
         } catch {
             onStatusMessage?("Failed to list loaded Codex threads: \(error.localizedDescription)")
@@ -99,6 +119,7 @@ final class CodexAppServerCoordinator {
         switch notification {
         case .threadStarted(let thread):
             guard !thread.ephemeral else { return }
+            guard isSessionTracked?(thread.id) != true else { return }
             emitSessionStarted(from: thread)
 
         case .threadStatusChanged(let threadId, let status):
@@ -138,10 +159,13 @@ final class CodexAppServerCoordinator {
                     ))
                 }
             case .idle:
-                onEvent?(.sessionCompleted(
-                    SessionCompleted(
+                // Idle means "between turns" in the same thread — the thread
+                // is still open.  Only `thread/closed` truly ends a session.
+                onEvent?(.activityUpdated(
+                    SessionActivityUpdated(
                         sessionID: threadId,
-                        summary: "Codex is idle.",
+                        summary: "Idle.",
+                        phase: .completed,
                         timestamp: .now
                     )
                 ))
@@ -159,19 +183,12 @@ final class CodexAppServerCoordinator {
                 )
             ))
 
-        case .threadNameUpdated(let threadId, let name):
-            // Title updates don't have a dedicated AgentEvent yet;
-            // use activityUpdated to refresh the session's summary.
-            if let name, !name.isEmpty {
-                onEvent?(.activityUpdated(
-                    SessionActivityUpdated(
-                        sessionID: threadId,
-                        summary: name,
-                        phase: .running,
-                        timestamp: .now
-                    )
-                ))
-            }
+        case .threadNameUpdated:
+            // Title updates don't have a dedicated AgentEvent and we can't
+            // safely overwrite phase/summary here (would clobber running or
+            // waiting-for-approval state).  Skip for now — the title is
+            // populated at sessionStarted time which is usually enough.
+            break
 
         case .turnStarted(let threadId, _):
             onEvent?(.activityUpdated(
@@ -184,6 +201,10 @@ final class CodexAppServerCoordinator {
             ))
 
         case .turnCompleted(let threadId, let turn):
+            // A turn completing doesn't end the thread — the user can send
+            // another message.  Use activityUpdated(phase: .completed) so the
+            // session stays visible as "Completed" rather than being torn
+            // down.  `thread/closed` is the authoritative end signal.
             let summary: String
             switch turn.status {
             case .completed: summary = "Turn completed."
@@ -191,10 +212,11 @@ final class CodexAppServerCoordinator {
             case .failed: summary = "Turn failed."
             case .inProgress: summary = "Turn in progress."
             }
-            onEvent?(.sessionCompleted(
-                SessionCompleted(
+            onEvent?(.activityUpdated(
+                SessionActivityUpdated(
                     sessionID: threadId,
                     summary: summary,
+                    phase: .completed,
                     timestamp: .now
                 )
             ))

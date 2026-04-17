@@ -73,10 +73,11 @@ public struct SessionState: Equatable, Sendable {
                 cursorMetadata: payload.cursorMetadata?.isEmpty == true ? nil : payload.cursorMetadata
             )
             session.isRemote = payload.isRemote
-            session.isCodexAppSession = payload.jumpTarget?.terminalApp == "Codex.app"
-            // Codex.app sessions use app-level liveness, not hook-managed
-            // processNotSeenCount fallback which kills sessions too quickly.
-            session.isHookManaged = payload.origin == .live && !session.isCodexAppSession
+            session.isHookManaged = payload.origin == .live
+            // Codex.app sessions use app-level liveness (NSRunningApplication)
+            // rather than hook-managed processNotSeenCount polling — flag is
+            // derived from jumpTarget.terminalApp via the shared helper.
+            Self.refreshCodexAppClassification(for: &session)
             session.isSessionEnded = false
             session.isProcessAlive = true
             session.processNotSeenCount = 0
@@ -155,6 +156,7 @@ public struct SessionState: Equatable, Sendable {
 
             session.jumpTarget = payload.jumpTarget
             session.updatedAt = payload.timestamp
+            Self.refreshCodexAppClassification(for: &session)
             upsert(session)
 
         case let .sessionMetadataUpdated(payload):
@@ -303,11 +305,26 @@ public struct SessionState: Equatable, Sendable {
             }
 
             session.jumpTarget = jumpTarget
+            Self.refreshCodexAppClassification(for: &session)
             upsert(session)
             changed = true
         }
 
         return changed
+    }
+
+    /// Re-derive `isCodexAppSession` and `isHookManaged` from the session's
+    /// current `jumpTarget.terminalApp`.  Called after any event that may
+    /// update the jumpTarget, so flags stay in sync if the terminal app
+    /// changes (e.g. the first hook fires before Codex.app is identified
+    /// and a later jumpTargetUpdated corrects it).
+    static func refreshCodexAppClassification(for session: inout AgentSession) {
+        let isCodexApp = session.jumpTarget?.terminalApp == "Codex.app"
+        session.isCodexAppSession = isCodexApp
+        // Codex.app sessions use app-level liveness, not hook-managed polling.
+        if isCodexApp {
+            session.isHookManaged = false
+        }
     }
 
     /// Mark a single session as alive (e.g. when a hook event is received).

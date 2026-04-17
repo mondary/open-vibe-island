@@ -115,6 +115,16 @@ final class ProcessMonitoringCoordinator {
         // Adopt process TTYs inline on local copy.
         adoptProcessTTYsForClaudeSessions(activeProcesses: activeProcesses, sessions: &local)
 
+        // Detect Codex.app running state BEFORE the empty-sessions early
+        // return — we need to fire the callback on a brand-new Codex.app
+        // launch even when no sessions exist yet, so the app-server
+        // coordinator can connect and report threads.
+        let isCodexAppRunning = Self.isCodexDesktopAppRunning()
+        if isCodexAppRunning != wasCodexAppRunning {
+            wasCodexAppRunning = isCodexAppRunning
+            onCodexAppRunningChanged?(isCodexAppRunning)
+        }
+
         let sessions = local.sessions.filter(\.isTrackedLiveSession)
         guard !sessions.isEmpty else {
             // Flush local changes only if something actually changed.
@@ -152,21 +162,12 @@ final class ProcessMonitoringCoordinator {
         _ = local.reconcileAttachmentStates(attachmentUpdates)
         _ = local.reconcileJumpTargets(jumpTargetUpdates)
 
-        // Detect Codex.app running state — used for both liveness and callback.
-        let isCodexAppRunning = Self.isCodexDesktopAppRunning()
-
         // Phase 1: populate isProcessAlive in parallel with existing system.
         let aliveIDs = sessionIDsWithAliveProcesses(activeProcesses: activeProcesses)
         _ = local.markProcessLiveness(
             aliveSessionIDs: aliveIDs,
             isCodexAppRunning: isCodexAppRunning
         )
-
-        // Notify when Codex.app running state changes.
-        if isCodexAppRunning != wasCodexAppRunning {
-            wasCodexAppRunning = isCodexAppRunning
-            onCodexAppRunningChanged?(isCodexAppRunning)
-        }
 
         // Resolve jump targets via the new focused resolver.
         // When pre-resolved targets are provided (computed off-main-actor),

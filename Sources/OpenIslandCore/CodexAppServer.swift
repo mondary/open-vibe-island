@@ -130,6 +130,11 @@ public final class CodexAppServerClient: @unchecked Sendable {
             self?.handleIncomingData(data)
         }
 
+        // Drain stderr so a full pipe can't block the child process.
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+            _ = handle.availableData
+        }
+
         try proc.run()
 
         // Send initialize request.
@@ -210,12 +215,15 @@ public final class CodexAppServerClient: @unchecked Sendable {
         ]
         var line = try JSONSerialization.data(withJSONObject: envelope)
         line.append(contentsOf: [UInt8(ascii: "\n")])
-        stdin.write(line)
 
+        // Register the continuation BEFORE writing — a fast app-server can
+        // reply between write() and registration, which would cause
+        // handleResponse to drop the reply and hang the await forever.
         return try await withCheckedThrowingContinuation { continuation in
             lock.lock()
             pendingRequests[requestID] = continuation
             lock.unlock()
+            stdin.write(line)
         }
     }
 
