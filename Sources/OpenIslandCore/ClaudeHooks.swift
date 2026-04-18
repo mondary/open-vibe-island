@@ -369,8 +369,10 @@ public struct ClaudeHookPayload: Equatable, Codable, Sendable {
     /// Set to `true` by the Python hook client to indicate a remote (SSH) session.
     public var remote: Bool?
 
-    /// The agent tool that produced this hook payload (e.g. "claude", "qoder", "factory", "codebuddy").
-    /// Set by the hooks CLI from the `--source` argument; not part of the JSON wire format.
+    /// The agent tool that produced this hook payload (e.g. "claude", "qoder", "factory", "codebuddy", "kimi").
+    /// Set by the hooks CLI from the `--source` argument; absent from the JSON emitted by agents
+    /// themselves but included on the Unix-socket wire so `BridgeServer.resolvedAgentTool` can
+    /// dispatch to the correct `AgentTool`.
     public var hookSource: String?
 
     private enum CodingKeys: String, CodingKey {
@@ -378,6 +380,7 @@ public struct ClaudeHookPayload: Equatable, Codable, Sendable {
         case hookEventName = "hook_event_name"
         case sessionID = "session_id"
         case transcriptPath = "transcript_path"
+        case hookSource = "hook_source"
         case permissionMode = "permission_mode"
         case agentID = "agent_id"
         case agentType = "agent_type"
