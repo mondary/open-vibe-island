@@ -743,6 +743,120 @@ struct AppModelSessionListTests {
         #expect(merged.map(\.id) == [existing.id])
     }
 
+    /// Regression test for the "session list collapses to synthetic placeholders" bug:
+    /// when multiple tracked hook-managed Claude sessions share a workspace and lsof
+    /// transiently fails to expose `sessionID` / `transcriptPath` for the corresponding
+    /// processes, Pass 1-3 of the matching logic can't uniquely pin down which process
+    /// owns which session. Without the workspace fallback, every process would be
+    /// treated as unrepresented, spawning one synthetic row per process (all stamped
+    /// with `now`, hence the "<1m" symptom) while the real sessions were evicted.
+    @Test
+    func mergedWithSyntheticClaudeSessionsDoesNotDuplicateWhenLsofCannotDisambiguateWorkspace() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let model = AppModel()
+
+        func trackedSession(id: String, tty: String) -> AgentSession {
+            var session = AgentSession(
+                id: id,
+                title: "Claude · osg-scp-mds",
+                tool: .claudeCode,
+                origin: .live,
+                attachmentState: .attached,
+                phase: .running,
+                summary: "Working",
+                updatedAt: now.addingTimeInterval(-600),
+                jumpTarget: JumpTarget(
+                    terminalApp: "Ghostty",
+                    workspaceName: "osg-scp-mds",
+                    paneTitle: "Claude \(id.prefix(8))",
+                    workingDirectory: "/Users/me/Personal/osg-scp-mds",
+                    terminalTTY: tty
+                ),
+                claudeMetadata: ClaudeSessionMetadata(
+                    transcriptPath: "/Users/me/.claude/projects/-Users-me-Personal-osg-scp-mds/\(id).jsonl",
+                    lastUserPrompt: "Real prompt preserved from hooks."
+                )
+            )
+            session.isHookManaged = true
+            session.isProcessAlive = true
+            return session
+        }
+
+        let tracked = [
+            trackedSession(id: "11111111-1111-1111-1111-111111111111", tty: "/dev/ttys010"),
+            trackedSession(id: "22222222-2222-2222-2222-222222222222", tty: "/dev/ttys011"),
+            trackedSession(id: "33333333-3333-3333-3333-333333333333", tty: "/dev/ttys012"),
+        ]
+
+        // Simulate lsof failing to expose sessionID and transcriptPath for any of
+        // the running Claude processes. TTYs differ but all share the workspace.
+        let activeProcesses: [ActiveProcessSnapshot] = [
+            .init(tool: .claudeCode, sessionID: nil, workingDirectory: "/Users/me/Personal/osg-scp-mds", terminalTTY: "/dev/ttys010", terminalApp: "Ghostty"),
+            .init(tool: .claudeCode, sessionID: nil, workingDirectory: "/Users/me/Personal/osg-scp-mds", terminalTTY: "/dev/ttys011", terminalApp: "Ghostty"),
+            .init(tool: .claudeCode, sessionID: nil, workingDirectory: "/Users/me/Personal/osg-scp-mds", terminalTTY: "/dev/ttys012", terminalApp: "Ghostty"),
+        ]
+
+        let merged = model.monitoring.mergedWithSyntheticClaudeSessions(
+            existingSessions: tracked,
+            activeProcesses: activeProcesses,
+            now: now
+        )
+
+        #expect(merged.count == tracked.count)
+        #expect(merged.allSatisfy { !$0.id.hasPrefix("claude-process:") })
+        #expect(Set(merged.map(\.id)) == Set(tracked.map(\.id)))
+    }
+
+    /// Regression test: hook-managed Claude sessions must stay alive while any Claude
+    /// process is running in the same workspace, even when lsof can't expose session
+    /// IDs or transcript paths. Otherwise `markProcessLiveness` would flip them to
+    /// `isSessionEnded` after two polls and `removeInvisibleSessions` would drop them.
+    @Test
+    func sessionIDsWithAliveProcessesKeepsHookManagedClaudeSessionsAliveByWorkspace() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let model = AppModel()
+
+        func hookSession(id: String, tty: String) -> AgentSession {
+            var session = AgentSession(
+                id: id,
+                title: "Claude · osg-scp-mds",
+                tool: .claudeCode,
+                origin: .live,
+                attachmentState: .attached,
+                phase: .running,
+                summary: "Working",
+                updatedAt: now.addingTimeInterval(-600),
+                jumpTarget: JumpTarget(
+                    terminalApp: "Ghostty",
+                    workspaceName: "osg-scp-mds",
+                    paneTitle: "Claude \(id.prefix(8))",
+                    workingDirectory: "/Users/me/Personal/osg-scp-mds",
+                    terminalTTY: tty
+                )
+            )
+            session.isHookManaged = true
+            return session
+        }
+
+        let sessions = [
+            hookSession(id: "11111111-1111-1111-1111-111111111111", tty: "/dev/ttys010"),
+            hookSession(id: "22222222-2222-2222-2222-222222222222", tty: "/dev/ttys011"),
+        ]
+        model.state = SessionState(sessions: sessions)
+
+        // lsof failed: sessionID / transcriptPath / even TTY are all missing.
+        // Only CWD remains — which is the realistic worst-case under load.
+        let activeProcesses: [ActiveProcessSnapshot] = [
+            .init(tool: .claudeCode, sessionID: nil, workingDirectory: "/Users/me/Personal/osg-scp-mds", terminalTTY: nil, terminalApp: "Ghostty"),
+            .init(tool: .claudeCode, sessionID: nil, workingDirectory: "/Users/me/Personal/osg-scp-mds", terminalTTY: nil, terminalApp: "Ghostty"),
+        ]
+
+        let aliveIDs = model.monitoring.sessionIDsWithAliveProcesses(activeProcesses: activeProcesses)
+
+        #expect(aliveIDs.contains("11111111-1111-1111-1111-111111111111"))
+        #expect(aliveIDs.contains("22222222-2222-2222-2222-222222222222"))
+    }
+
 
     /// Regression test: `measuredNotificationContentHeight` MUST be cleared when the
     /// surface changes to a different session, to avoid sizing the new card with stale

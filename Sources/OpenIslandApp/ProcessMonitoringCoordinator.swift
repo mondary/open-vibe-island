@@ -316,6 +316,28 @@ final class ProcessMonitoringCoordinator {
             claimedSessionIDs.insert(matched.id)
         }
 
+        // Pass 4: workspace (CWD) fallback. lsof can transiently fail to
+        // expose session ID / transcript path under load, and Pass 3's
+        // uniqueness check drops matches when multiple sessions share a
+        // workspace. Without a fallback, the hook-managed liveness timer
+        // in SessionState.markProcessLiveness would mark perfectly healthy
+        // sessions as ended after 2 polls and synthetic placeholders would
+        // take over. Keep any unclaimed tracked Claude session alive as
+        // long as at least one Claude process is running in its workspace;
+        // hooks remain authoritative for phase changes.
+        let claudeProcessCWDs: Set<String> = Set(
+            claudeProcesses.compactMap { normalizedPathForMatching($0.workingDirectory) }
+        )
+        if !claudeProcessCWDs.isEmpty {
+            for session in trackedClaudeSessions where !claimedSessionIDs.contains(session.id) {
+                guard let sessionCWD = normalizedPathForMatching(session.jumpTarget?.workingDirectory),
+                      claudeProcessCWDs.contains(sessionCWD) else {
+                    continue
+                }
+                aliveIDs.insert(session.id)
+            }
+        }
+
         // OpenCode sessions are hook-managed, but OpenCode does not expose a stable
         // session ID through process discovery. Match each active OpenCode process
         // to at most one tracked session.
@@ -638,6 +660,31 @@ final class ProcessMonitoringCoordinator {
 
             representedProcessKeys.insert(processKey)
             claimedSessionIDs.insert(matchedSession.id)
+        }
+
+        // Workspace fallback. When none of the above passes can pin a
+        // process to a specific tracked session (e.g. lsof didn't expose
+        // session ID or transcript path, or multiple sessions in the same
+        // workspace defeat Pass 3's uniqueness check), treat the process as
+        // "represented" whenever ANY unclaimed tracked Claude session lives
+        // in its workspace. This suppresses phantom synthetic rows that
+        // would otherwise replace the real hook-managed sessions while the
+        // liveness fallback and eviction fire in the same 2-second window.
+        let unclaimedSessionCWDs: Set<String> = Set(
+            trackedClaudeSessions
+                .filter { !claimedSessionIDs.contains($0.id) }
+                .compactMap { normalizedPathForMatching($0.jumpTarget?.workingDirectory) }
+        )
+        if !unclaimedSessionCWDs.isEmpty {
+            for process in activeProcesses {
+                let processKey = processIdentityKey(process)
+                guard !representedProcessKeys.contains(processKey),
+                      let processCWD = normalizedPathForMatching(process.workingDirectory),
+                      unclaimedSessionCWDs.contains(processCWD) else {
+                    continue
+                }
+                representedProcessKeys.insert(processKey)
+            }
         }
 
         return representedProcessKeys
