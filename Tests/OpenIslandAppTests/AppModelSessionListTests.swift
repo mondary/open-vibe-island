@@ -778,6 +778,157 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func syntheticClaudeSessionUpdatedAtIsFrozenAtFirstDiscovery() {
+        let t0 = Date(timeIntervalSince1970: 10_000)
+        let model = AppModel()
+        let process: ActiveProcessSnapshot = .init(
+            tool: .claudeCode,
+            sessionID: nil,
+            workingDirectory: "/tmp/frozen-age",
+            terminalTTY: "/dev/ttys042",
+            terminalApp: "Ghostty"
+        )
+
+        let firstPass = model.monitoring.mergedWithSyntheticClaudeSessions(
+            existingSessions: [],
+            activeProcesses: [process],
+            now: t0
+        )
+
+        #expect(firstPass.count == 1)
+        #expect(firstPass.first?.updatedAt == t0)
+
+        let secondPass = model.monitoring.mergedWithSyntheticClaudeSessions(
+            existingSessions: [],
+            activeProcesses: [process],
+            now: t0.addingTimeInterval(300)
+        )
+
+        #expect(secondPass.count == 1)
+        #expect(secondPass.first?.updatedAt == t0)
+    }
+
+    @Test
+    func syntheticClaudeSessionEvictsFirstSeenWhenProcessDisappears() {
+        let t0 = Date(timeIntervalSince1970: 20_000)
+        let model = AppModel()
+        let process: ActiveProcessSnapshot = .init(
+            tool: .claudeCode,
+            sessionID: nil,
+            workingDirectory: "/tmp/evict-age",
+            terminalTTY: "/dev/ttys099",
+            terminalApp: "Ghostty"
+        )
+
+        let firstPass = model.monitoring.mergedWithSyntheticClaudeSessions(
+            existingSessions: [],
+            activeProcesses: [process],
+            now: t0
+        )
+        #expect(firstPass.first?.updatedAt == t0)
+
+        let emptyPass = model.monitoring.mergedWithSyntheticClaudeSessions(
+            existingSessions: [],
+            activeProcesses: [],
+            now: t0.addingTimeInterval(300)
+        )
+        #expect(emptyPass.isEmpty)
+
+        let reappearanceTime = t0.addingTimeInterval(600)
+        let thirdPass = model.monitoring.mergedWithSyntheticClaudeSessions(
+            existingSessions: [],
+            activeProcesses: [process],
+            now: reappearanceTime
+        )
+
+        #expect(thirdPass.count == 1)
+        #expect(thirdPass.first?.updatedAt == reappearanceTime)
+    }
+
+    @Test
+    func mergedWithSyntheticClaudeSessionsDoesNotCreateSyntheticWhenHookManagedSessionOwnsWorkspace() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let model = AppModel()
+        var hookManaged = AgentSession(
+            id: "abc-123",
+            title: "Claude · proj",
+            tool: .claudeCode,
+            origin: .live,
+            attachmentState: .stale,
+            phase: .running,
+            summary: "Running",
+            updatedAt: now,
+            jumpTarget: JumpTarget(
+                terminalApp: "Ghostty",
+                workspaceName: "proj",
+                paneTitle: "Claude abc-123",
+                workingDirectory: "/tmp/proj"
+            )
+        )
+        hookManaged.isHookManaged = true
+
+        let merged = model.monitoring.mergedWithSyntheticClaudeSessions(
+            existingSessions: [hookManaged],
+            activeProcesses: [
+                .init(
+                    tool: .claudeCode,
+                    sessionID: nil,
+                    workingDirectory: "/tmp/proj",
+                    terminalTTY: "/dev/ttys200",
+                    terminalApp: "Ghostty",
+                    transcriptPath: nil
+                ),
+            ],
+            now: now
+        )
+
+        #expect(merged.count == 1)
+        #expect(merged.first?.id == "abc-123")
+    }
+
+    @Test
+    func mergedWithSyntheticClaudeSessionsStillCreatesSyntheticForOrphanWorkspace() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let model = AppModel()
+        var hookManaged = AgentSession(
+            id: "abc-123",
+            title: "Claude · proj-A",
+            tool: .claudeCode,
+            origin: .live,
+            attachmentState: .stale,
+            phase: .running,
+            summary: "Running",
+            updatedAt: now,
+            jumpTarget: JumpTarget(
+                terminalApp: "Ghostty",
+                workspaceName: "proj-A",
+                paneTitle: "Claude abc-123",
+                workingDirectory: "/tmp/proj-A"
+            )
+        )
+        hookManaged.isHookManaged = true
+
+        let merged = model.monitoring.mergedWithSyntheticClaudeSessions(
+            existingSessions: [hookManaged],
+            activeProcesses: [
+                .init(
+                    tool: .claudeCode,
+                    sessionID: nil,
+                    workingDirectory: "/tmp/proj-B",
+                    terminalTTY: "/dev/ttys201",
+                    terminalApp: "Ghostty",
+                    transcriptPath: nil
+                ),
+            ],
+            now: now
+        )
+
+        #expect(merged.count == 2)
+        #expect(merged.contains { $0.id == "abc-123" })
+        #expect(merged.contains { $0.id.hasPrefix("claude-process:") })
+    }
+
+    @Test
     func mergedWithSyntheticClaudeSessionsSkipsSyntheticWhenStaleClaudeSessionMatchesActiveProcess() {
         let now = Date(timeIntervalSince1970: 2_000)
         let model = AppModel()

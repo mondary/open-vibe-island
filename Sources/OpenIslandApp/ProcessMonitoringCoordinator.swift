@@ -44,6 +44,11 @@ final class ProcessMonitoringCoordinator {
     @ObservationIgnored
     private var wasCodexAppRunning = false
 
+    // Freezes `updatedAt` on synthetic Claude rows at first-discovery time so
+    // the age badge reflects real age, not a "<1m" phantom refreshed every poll.
+    @ObservationIgnored
+    private var syntheticClaudeFirstSeen: [String: Date] = [:]
+
     private var state: SessionState {
         get { stateAccessor?() ?? SessionState() }
         set { stateUpdater?(newValue) }
@@ -519,11 +524,26 @@ final class ProcessMonitoringCoordinator {
         now: Date = .now
     ) -> [AgentSession] {
         let baseSessions = existingSessions.filter { !isSyntheticClaudeSession($0) }
+
+        // Any hook-managed Claude session authoritatively owns its workspace:
+        // even if this poll's snapshots miss the match, we must not synthesize
+        // a phantom sibling row for the same workspace.
+        let workspacesWithHookHistory: Set<String> = Set(
+            baseSessions
+                .filter { $0.tool == .claudeCode && $0.isHookManaged }
+                .compactMap { normalizedPathForMatching($0.jumpTarget?.workingDirectory) }
+        )
+
         let syntheticSessions = syntheticClaudeSessions(
             existingSessions: baseSessions,
             activeProcesses: activeProcesses,
+            workspacesWithHookHistory: workspacesWithHookHistory,
             now: now
         )
+
+        let activeClaudeProcesses = activeProcesses.filter { $0.tool == .claudeCode }
+        let liveIdentities = Set(activeClaudeProcesses.map { processIdentityKey($0) })
+        syntheticClaudeFirstSeen = syntheticClaudeFirstSeen.filter { liveIdentities.contains($0.key) }
 
         return baseSessions + syntheticSessions
     }
@@ -531,6 +551,7 @@ final class ProcessMonitoringCoordinator {
     private func syntheticClaudeSessions(
         existingSessions: [AgentSession],
         activeProcesses: [ActiveProcessSnapshot],
+        workspacesWithHookHistory: Set<String>,
         now: Date
     ) -> [AgentSession] {
         let activeClaudeProcesses = activeProcesses.filter { process in
@@ -547,6 +568,10 @@ final class ProcessMonitoringCoordinator {
 
         return activeClaudeProcesses
             .filter { !representedProcessKeys.contains(processIdentityKey($0)) }
+            .filter { process in
+                guard let cwd = normalizedPathForMatching(process.workingDirectory) else { return true }
+                return !workspacesWithHookHistory.contains(cwd)
+            }
             .sorted { processIdentityKey($0) < processIdentityKey($1) }
             .map { syntheticClaudeSession(for: $0, now: now) }
     }
@@ -560,6 +585,11 @@ final class ProcessMonitoringCoordinator {
         let terminalApp = supportedTerminalApp(for: process.terminalApp) ?? "Unknown"
         let identity = processIdentityKey(process)
 
+        if syntheticClaudeFirstSeen[identity] == nil {
+            syntheticClaudeFirstSeen[identity] = now
+        }
+        let firstSeen = syntheticClaudeFirstSeen[identity] ?? now
+
         var session = AgentSession(
             id: "\(syntheticClaudeSessionPrefix)\(identity)",
             title: "Claude · \(workspaceName)",
@@ -568,7 +598,7 @@ final class ProcessMonitoringCoordinator {
             attachmentState: .attached,
             phase: .completed,
             summary: "Claude session detected from \(terminalApp).",
-            updatedAt: now,
+            updatedAt: firstSeen,
             jumpTarget: JumpTarget(
                 terminalApp: terminalApp,
                 workspaceName: workspaceName,
