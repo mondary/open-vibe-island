@@ -101,7 +101,7 @@ struct AppearanceSettingsPane: View {
     }
 
     private var previewControls: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 10) {
             // Layout toggle
             Picker("", selection: $previewLayout) {
                 Text(lang.t("settings.appearance.preview.external")).tag(V6ClosedLayout.external)
@@ -109,9 +109,9 @@ struct AppearanceSettingsPane: View {
             }
             .labelsHidden()
             .pickerStyle(.segmented)
-            .frame(width: 220)
+            .frame(width: 160)
 
-            Spacer()
+            Spacer(minLength: 8)
 
             // Auto-cycle toggle (default on — drives the state chips).
             monoChip(
@@ -295,6 +295,8 @@ struct AppearanceSettingsPane: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .foregroundStyle(selected ? V6Palette.ink : V6Palette.paper.opacity(0.7))
