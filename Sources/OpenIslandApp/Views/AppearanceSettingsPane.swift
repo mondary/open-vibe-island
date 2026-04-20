@@ -11,8 +11,12 @@ import OpenIslandCore
 /// avatars) was cut in the v6 redesign round.
 struct AppearanceSettingsPane: View {
     var model: AppModel
-    @State private var previewMode: UnifiedBars.Mode = .running
+    @State private var previewMode: UnifiedBars.Mode = .idle
     @State private var previewLayout: V6ClosedLayout = .external
+    @State private var previewAutoCycle: Bool = true
+
+    private static let autoCycleOrder: [UnifiedBars.Mode] = [.idle, .running, .waiting, .done]
+    private static let autoCycleInterval: TimeInterval = 2.0
 
     private var lang: LanguageManager { model.lang }
 
@@ -56,8 +60,9 @@ struct AppearanceSettingsPane: View {
         let frameW: CGFloat = 420
         let frameH: CGFloat = 44
         let physicalNotchW: CGFloat = 180
+        let pillHeight: CGFloat = 32
 
-        return ZStack {
+        return ZStack(alignment: .top) {
             LinearGradient(
                 colors: [
                     Color(red: 0.16, green: 0.16, blue: 0.19),
@@ -67,12 +72,12 @@ struct AppearanceSettingsPane: View {
             )
 
             if previewLayout == .macbook {
-                // Physical hardware notch mock
+                // Physical hardware notch mock — pinned to the TOP of the
+                // frame, same as the real physical cutout would sit at the
+                // top of the display.
                 V6ClosedPillShape()
                     .fill(Color.black)
-                    .frame(width: physicalNotchW, height: 32)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .frame(height: frameH, alignment: .top)
+                    .frame(width: physicalNotchW, height: pillHeight)
             }
 
             TimelineView(.periodic(from: .now, by: 0.25)) { context in
@@ -108,12 +113,44 @@ struct AppearanceSettingsPane: View {
 
             Spacer()
 
-            // State toggle
+            // Auto-cycle toggle (default on — drives the state chips).
+            monoChip(
+                title: previewAutoCycle
+                    ? lang.t("settings.appearance.state.auto.on")
+                    : lang.t("settings.appearance.state.auto.off"),
+                selected: previewAutoCycle
+            ) {
+                previewAutoCycle.toggle()
+            }
+
+            // Manual state chips — selecting one turns off auto-cycle.
             ForEach([UnifiedBars.Mode.idle, .running, .waiting, .done], id: \.self) { mode in
-                monoChip(title: title(for: mode), selected: previewMode == mode) {
+                monoChip(title: title(for: mode), selected: !previewAutoCycle && previewMode == mode) {
+                    previewAutoCycle = false
                     previewMode = mode
                 }
             }
+        }
+        .onAppear(perform: restartAutoCycleTick)
+        .onChange(of: previewAutoCycle) { _, on in
+            if on { restartAutoCycleTick() }
+        }
+    }
+
+    // Simple self-scheduling tick. We don't use `Timer.publish` so the
+    // cycle halts cleanly when the pane disappears (the captured
+    // `previewAutoCycle` state is read at each fire).
+    private func restartAutoCycleTick() {
+        guard previewAutoCycle else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.autoCycleInterval) {
+            guard previewAutoCycle else { return }
+            let order = Self.autoCycleOrder
+            let current = order.firstIndex(of: previewMode) ?? 0
+            let next = order[(current + 1) % order.count]
+            withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: 0.45)) {
+                previewMode = next
+            }
+            restartAutoCycleTick()
         }
     }
 

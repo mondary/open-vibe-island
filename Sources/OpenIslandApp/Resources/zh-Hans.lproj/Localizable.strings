@@ -53,6 +53,8 @@
 "settings.appearance.state.running" = "运行";
 "settings.appearance.state.waiting" = "等待";
 "settings.appearance.state.done" = "完成";
+"settings.appearance.state.auto.on" = "自动 ✓";
+"settings.appearance.state.auto.off" = "自动";
 "settings.appearance.rightSlot.title" = "01 · 右槽";
 "settings.appearance.rightSlot.note" = "收起状态下 notch 右侧显示的内容。";
 "settings.appearance.rightSlot.count" = "会话数";
