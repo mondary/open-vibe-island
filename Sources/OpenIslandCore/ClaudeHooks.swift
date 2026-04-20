@@ -258,6 +258,7 @@ public struct ClaudeSessionMetadata: Equatable, Codable, Sendable {
     public var worktreeBranch: String?
     public var activeSubagents: [ClaudeSubagentInfo]
     public var activeTasks: [ClaudeTaskInfo]
+    public var agentPID: Int32?
 
     public init(
         transcriptPath: String? = nil,
@@ -273,7 +274,8 @@ public struct ClaudeSessionMetadata: Equatable, Codable, Sendable {
         agentType: String? = nil,
         worktreeBranch: String? = nil,
         activeSubagents: [ClaudeSubagentInfo] = [],
-        activeTasks: [ClaudeTaskInfo] = []
+        activeTasks: [ClaudeTaskInfo] = [],
+        agentPID: Int32? = nil
     ) {
         self.transcriptPath = transcriptPath
         self.initialUserPrompt = initialUserPrompt
@@ -289,6 +291,7 @@ public struct ClaudeSessionMetadata: Equatable, Codable, Sendable {
         self.worktreeBranch = worktreeBranch
         self.activeSubagents = activeSubagents
         self.activeTasks = activeTasks
+        self.agentPID = agentPID
     }
 
     public var isEmpty: Bool {
@@ -306,6 +309,7 @@ public struct ClaudeSessionMetadata: Equatable, Codable, Sendable {
             && worktreeBranch == nil
             && activeSubagents.isEmpty
             && activeTasks.isEmpty
+            && agentPID == nil
     }
 }
 
@@ -713,7 +717,8 @@ public extension ClaudeHookPayload {
             permissionMode: permissionMode,
             agentID: agentID,
             agentType: agentType,
-            worktreeBranch: worktreeBranch
+            worktreeBranch: worktreeBranch,
+            agentPID: agentPID
         )
     }
 

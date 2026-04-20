@@ -884,4 +884,117 @@ struct AppModelSessionListTests {
         let claudeSessions = model.state.sessions.filter { $0.tool == .claudeCode }
         #expect(claudeSessions.count == 2)
     }
+
+    @Test
+    func mergeKeepsEarlierAgentPIDWhenLaterIsNil() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let model = AppModel()
+        model.state = SessionState(
+            sessions: [
+                AgentSession(
+                    id: "claude-pid-session",
+                    title: "Claude · open-island",
+                    tool: .claudeCode,
+                    origin: .live,
+                    attachmentState: .stale,
+                    phase: .running,
+                    summary: "Running",
+                    updatedAt: now.addingTimeInterval(-30),
+                    jumpTarget: JumpTarget(
+                        terminalApp: "Ghostty",
+                        workspaceName: "open-island",
+                        paneTitle: "claude ~/open-island",
+                        workingDirectory: "/tmp/open-island"
+                    ),
+                    claudeMetadata: ClaudeSessionMetadata(
+                        transcriptPath: "/tmp/claude.jsonl",
+                        agentPID: 100
+                    )
+                ),
+            ]
+        )
+
+        let merged = model.discovery.mergeDiscoveredSessions([
+            AgentSession(
+                id: "claude-pid-session",
+                title: "Claude · open-island",
+                tool: .claudeCode,
+                origin: .live,
+                attachmentState: .stale,
+                phase: .running,
+                summary: "Running",
+                updatedAt: now,
+                jumpTarget: JumpTarget(
+                    terminalApp: "Ghostty",
+                    workspaceName: "open-island",
+                    paneTitle: "claude ~/open-island",
+                    workingDirectory: "/tmp/open-island"
+                ),
+                claudeMetadata: ClaudeSessionMetadata(
+                    transcriptPath: "/tmp/claude.jsonl",
+                    lastUserPrompt: "New prompt."
+                )
+            ),
+        ])
+
+        #expect(merged.count == 1)
+        #expect(merged.first?.claudeMetadata?.agentPID == 100)
+        #expect(merged.first?.claudeMetadata?.lastUserPrompt == "New prompt.")
+    }
+
+    @Test
+    func mergeAdoptsNewerAgentPIDWhenSpecified() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let model = AppModel()
+        model.state = SessionState(
+            sessions: [
+                AgentSession(
+                    id: "claude-pid-session",
+                    title: "Claude · open-island",
+                    tool: .claudeCode,
+                    origin: .live,
+                    attachmentState: .stale,
+                    phase: .running,
+                    summary: "Running",
+                    updatedAt: now.addingTimeInterval(-30),
+                    jumpTarget: JumpTarget(
+                        terminalApp: "Ghostty",
+                        workspaceName: "open-island",
+                        paneTitle: "claude ~/open-island",
+                        workingDirectory: "/tmp/open-island"
+                    ),
+                    claudeMetadata: ClaudeSessionMetadata(
+                        transcriptPath: "/tmp/claude.jsonl",
+                        agentPID: 100
+                    )
+                ),
+            ]
+        )
+
+        let merged = model.discovery.mergeDiscoveredSessions([
+            AgentSession(
+                id: "claude-pid-session",
+                title: "Claude · open-island",
+                tool: .claudeCode,
+                origin: .live,
+                attachmentState: .stale,
+                phase: .running,
+                summary: "Running",
+                updatedAt: now,
+                jumpTarget: JumpTarget(
+                    terminalApp: "Ghostty",
+                    workspaceName: "open-island",
+                    paneTitle: "claude ~/open-island",
+                    workingDirectory: "/tmp/open-island"
+                ),
+                claudeMetadata: ClaudeSessionMetadata(
+                    transcriptPath: "/tmp/claude.jsonl",
+                    agentPID: 200
+                )
+            ),
+        ])
+
+        #expect(merged.count == 1)
+        #expect(merged.first?.claudeMetadata?.agentPID == 200)
+    }
 }
