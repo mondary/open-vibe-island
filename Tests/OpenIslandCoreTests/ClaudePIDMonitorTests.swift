@@ -160,6 +160,36 @@ struct ClaudePIDMonitorTests {
     }
 
     @Test
+    func untrackAllCancelsEveryPendingCallback() throws {
+        let monitor = ClaudePIDMonitor(gracePeriod: 0)
+        let first = try spawnSleep(duration: 0.2)
+        let second = try spawnSleep(duration: 0.2)
+
+        let counter = CallCounter()
+        monitor.track(sessionID: "s1", pid: first.processIdentifier) { _ in
+            counter.increment()
+        }
+        monitor.track(sessionID: "s2", pid: second.processIdentifier) { _ in
+            counter.increment()
+        }
+
+        #expect(monitor.isTracking(sessionID: "s1") == true)
+        #expect(monitor.isTracking(sessionID: "s2") == true)
+
+        monitor.untrackAll()
+
+        #expect(monitor.isTracking(sessionID: "s1") == false)
+        #expect(monitor.isTracking(sessionID: "s2") == false)
+
+        // Let both subprocesses exit; any surviving dispatch source would fire now.
+        Thread.sleep(forTimeInterval: 1.0)
+        #expect(counter.value == 0)
+
+        first.ensureExited()
+        second.ensureExited()
+    }
+
+    @Test
     func deinitCancelsEverythingCleanly() throws {
         let process = try spawnSleep(duration: 10)
         let pid = process.processIdentifier

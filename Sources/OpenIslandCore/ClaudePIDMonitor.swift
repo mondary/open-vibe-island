@@ -76,6 +76,16 @@ public final class ClaudePIDMonitor: @unchecked Sendable {
         }
     }
 
+    public func untrackAll() {
+        performSync {
+            for (_, record) in self.records {
+                record.pendingGrace?.cancel()
+                record.source?.cancel()
+            }
+            self.records.removeAll()
+        }
+    }
+
     public func isTracking(sessionID: String) -> Bool {
         performSync { self.records[sessionID] != nil }
     }
