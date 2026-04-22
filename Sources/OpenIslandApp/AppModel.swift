@@ -264,12 +264,19 @@ final class AppModel {
             do {
                 try LaunchAtLoginService.shared.setEnabled(launchAtLoginEnabled)
             } catch {
-                lastActionMessage = "Launch at Login failed: \(error.localizedDescription)"
                 isApplyingLaunchAtLogin = true
                 launchAtLoginEnabled = oldValue
                 isApplyingLaunchAtLogin = false
+                presentLaunchAtLoginError(error)
             }
         }
+    }
+    private func presentLaunchAtLoginError(_ error: Error) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = lang.t("settings.general.launchAtLogin")
+        alert.informativeText = error.localizedDescription
+        alert.runModal()
     }
     @ObservationIgnored
     private var isApplyingLaunchAtLogin = false

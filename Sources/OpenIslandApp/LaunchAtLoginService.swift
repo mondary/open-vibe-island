@@ -1,6 +1,5 @@
 import Foundation
 import ServiceManagement
-import os
 
 /// Wraps `SMAppService.mainApp` for registering/unregistering Open Island as a
 /// login item. `SMAppService.mainApp` is authoritative — the UI reads its
@@ -9,8 +8,6 @@ import os
 @MainActor
 final class LaunchAtLoginService {
     static let shared = LaunchAtLoginService()
-
-    private let log = Logger(subsystem: "app.openisland", category: "LaunchAtLogin")
 
     /// `.enabled` and `.requiresApproval` both count as "on": if the user
     /// approved, we run at login; if they haven't approved yet, the OS will
@@ -23,6 +20,7 @@ final class LaunchAtLoginService {
     func setEnabled(_ enabled: Bool) throws {
         let service = SMAppService.mainApp
         if enabled {
+            guard !isEnabled else { return }
             try service.register()
         } else {
             let status = service.status
