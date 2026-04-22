@@ -258,6 +258,21 @@ final class AppModel {
             UserDefaults.standard.set(suppressFrontmostNotifications, forKey: Self.suppressFrontmostNotificationsDefaultsKey)
         }
     }
+    var launchAtLoginEnabled: Bool = false {
+        didSet {
+            guard !isApplyingLaunchAtLogin, hasFinishedInit, launchAtLoginEnabled != oldValue else { return }
+            do {
+                try LaunchAtLoginService.shared.setEnabled(launchAtLoginEnabled)
+            } catch {
+                lastActionMessage = "Launch at Login failed: \(error.localizedDescription)"
+                isApplyingLaunchAtLogin = true
+                launchAtLoginEnabled = oldValue
+                isApplyingLaunchAtLogin = false
+            }
+        }
+    }
+    @ObservationIgnored
+    private var isApplyingLaunchAtLogin = false
     var isSoundMuted = false {
         didSet {
             guard isSoundMuted != oldValue else {
@@ -508,6 +523,7 @@ final class AppModel {
             )
         }
         completionReplyEnabled = UserDefaults.standard.bool(forKey: Self.completionReplyEnabledDefaultsKey)
+        launchAtLoginEnabled = LaunchAtLoginService.shared.isEnabled
         islandAppearanceMode = IslandAppearanceMode(
             rawValue: UserDefaults.standard.string(forKey: Self.islandAppearanceModeDefaultsKey) ?? ""
         ) ?? .default
