@@ -220,7 +220,7 @@ Hooks **fail open**——如果 Open Island 没在运行，你的 agents 不受�
 
 <a href="https://github.com/Octane0411/open-vibe-island/graphs/contributors">
   <!-- CONTRIBUTORS-IMG:START -->
-  <img src="https://contrib.rocks/image?repo=Octane0411/open-vibe-island&t=1776857788" />
+  <img src="https://contrib.rocks/image?repo=Octane0411/open-vibe-island&t=1777472315" />
   <!-- CONTRIBUTORS-IMG:END -->
 </a>
 
