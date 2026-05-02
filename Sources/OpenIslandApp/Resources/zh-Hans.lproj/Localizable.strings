@@ -160,21 +160,6 @@
 "completion.done" = "完成";
 "completion.replyPlaceholder" = "回复 Claude…";
 
-/* Menu Bar */
-"menu.status" = "%lld 活跃 · %lld 待处理";
-"menu.settings" = "设置…";
-"menu.openDebug" = "打开调试面板";
-"menu.hideOverlay" = "隐藏岛屿浮层";
-"menu.showOverlay" = "显示岛屿浮层";
-"menu.refreshCodexHooks" = "刷新 Codex Hook 状态";
-"menu.uninstallCodexHooks" = "卸载 Codex Hooks";
-"menu.installCodexHooks" = "安装 Codex Hooks";
-"menu.refreshClaudeHooks" = "刷新 Claude Hook 状态";
-"menu.uninstallClaudeHooks" = "卸载 Claude Hooks";
-"menu.installClaudeHooks" = "安装 Claude Hooks";
-"menu.liveTool" = "当前工具: %@";
-"menu.tracking" = "跟踪: %@";
-
 /* Debug Panel */
 "debug.title" = "Open Island 调试";
 "debug.description" = "基于 Mock 的 Notch 界面测试工具，用于验证会话列表、审批、问答和完成卡片。";

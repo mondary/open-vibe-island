@@ -970,7 +970,16 @@ final class AppModel {
     }
 
     func showSettings() {
-        openSettingsWindow?()
+        if let opener = openSettingsWindow {
+            opener()
+        } else {
+            // First-launch fallback: SwiftUI's `openWindow` closure is registered
+            // by `SettingsWindowContent.onAppear`, which doesn't fire until the
+            // settings window renders the first time. Send the standard
+            // `showSettingsWindow:` responder action (macOS 13+) so it fires
+            // the `CommandGroup(.appSettings)` button that opens the window.
+            NSApp.sendAction(NSSelectorFromString("showSettingsWindow:"), to: nil, from: nil)
+        }
         if let window = NSApp.windows.first(where: { $0.title == "Open Island Settings" }) {
             window.orderFrontRegardless()
             window.makeKey()

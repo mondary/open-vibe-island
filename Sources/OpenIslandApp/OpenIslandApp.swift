@@ -84,7 +84,7 @@ final class OpenIslandAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static func hideAllAppWindows() {
-        for window in NSApp.windows where !window.className.contains("MenuBarExtra") {
+        for window in NSApp.windows {
             window.orderOut(nil)
         }
     }
@@ -122,33 +122,6 @@ struct OpenIslandApp: App {
             ControlCenterView(model: appDelegate.model)
         }
         #endif
-
-        MenuBarExtra {
-            MenuBarContentView(model: appDelegate.model)
-        } label: {
-            OpenIslandBrandMark(size: 18, style: .template)
-                .accessibilityLabel("Open Island")
-                .background(SettingsOpenerRegistrar(model: appDelegate.model))
-        }
-        .menuBarExtraStyle(.window)
-    }
-}
-
-/// Registers `openWindow` into `AppModel` from the MenuBarExtra label,
-/// which is always rendered at app startup — guaranteeing that
-/// `model.showSettings()` works even before the settings window has
-/// ever been opened.
-private struct SettingsOpenerRegistrar: View {
-    var model: AppModel
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Color.clear
-            .onAppear {
-                model.openSettingsWindow = { [openWindow] in
-                    openWindow(id: "settings")
-                }
-            }
     }
 }
 
