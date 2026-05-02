@@ -159,21 +159,6 @@
 "completion.done" = "完成";
 "completion.replyPlaceholder" = "回覆 Claude…";
 
-/* Menu Bar */
-"menu.status" = "%lld 活躍 · %lld 待處理";
-"menu.settings" = "設定…";
-"menu.openDebug" = "開啟除錯面板";
-"menu.hideOverlay" = "隱藏島嶼浮層";
-"menu.showOverlay" = "顯示島嶼浮層";
-"menu.refreshCodexHooks" = "重新整理 Codex Hook 狀態";
-"menu.uninstallCodexHooks" = "移除 Codex Hooks";
-"menu.installCodexHooks" = "安裝 Codex Hooks";
-"menu.refreshClaudeHooks" = "重新整理 Claude Hook 狀態";
-"menu.uninstallClaudeHooks" = "移除 Claude Hooks";
-"menu.installClaudeHooks" = "安裝 Claude Hooks";
-"menu.liveTool" = "目前工具: %@";
-"menu.tracking" = "追蹤: %@";
-
 /* Debug Panel */
 "debug.title" = "Open Island 除錯";
 "debug.description" = "基於 Mock 的 Notch 介面測試工具，用於驗證工作階段清單、核准、問答和完成卡片。";

@@ -160,21 +160,6 @@
 "completion.done" = "Done";
 "completion.replyPlaceholder" = "Reply to Claude…";
 
-/* Menu Bar */
-"menu.status" = "%lld live · %lld attention";
-"menu.settings" = "Settings…";
-"menu.openDebug" = "Open Debug Panel";
-"menu.hideOverlay" = "Hide Island Overlay";
-"menu.showOverlay" = "Show Island Overlay";
-"menu.refreshCodexHooks" = "Refresh Codex Hook Status";
-"menu.uninstallCodexHooks" = "Uninstall Codex Hooks";
-"menu.installCodexHooks" = "Install Codex Hooks";
-"menu.refreshClaudeHooks" = "Refresh Claude Hook Status";
-"menu.uninstallClaudeHooks" = "Uninstall Claude Hooks";
-"menu.installClaudeHooks" = "Install Claude Hooks";
-"menu.liveTool" = "Live tool: %@";
-"menu.tracking" = "Tracking: %@";
-
 /* Debug Panel */
 "debug.title" = "Open Island Debug";
 "debug.description" = "Mock-driven notch surface harness for validating session list, approval, question, and completion cards.";
