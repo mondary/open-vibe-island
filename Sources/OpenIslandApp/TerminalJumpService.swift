@@ -169,7 +169,8 @@ struct TerminalJumpService {
             .map(\.bundleIdentifier)
     )
 
-    /// Bundle identifiers of VS Code family editors (VS Code, Insiders, Cursor, Windsurf, Trae).
+    /// Bundle identifiers of VS Code family editors (VS Code, Insiders, Cursor,
+    /// Windsurf, Trae, Qoder).
     private static let vscodeFamilyBundleIDs: Set<String> = [
         "com.microsoft.VSCode",
         "com.microsoft.VSCodeInsiders",
@@ -177,6 +178,7 @@ struct TerminalJumpService {
         "com.exafunction.windsurf",
         "com.trae.app",
         "cn.trae.app",
+        "com.qoder.qoder",
     ]
 
     /// Bundle identifiers of terminal emulators that commonly host Zellij,
