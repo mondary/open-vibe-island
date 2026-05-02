@@ -18,6 +18,14 @@ Brief English summary of this release.
 
 ## Installation | 安装说明
 
+**Homebrew** (recommended | 推荐):
+
+```bash
+brew install --cask octane0411/tap/openisland
+```
+
+**Or download manually | 或手动下载**:
+
 1. Download **Open Island.dmg**, open it, and drag **Open Island** to **Applications**.
    下载 **Open Island.dmg**，打开后将 **Open Island** 拖入 **Applications**。
 
