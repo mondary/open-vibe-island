@@ -285,7 +285,7 @@ jobs:
             --head "$branch" \
             --title "openisland: bump to v${VERSION}" \
             --body "Automated bump from https://github.com/Octane0411/open-vibe-island/releases/tag/v${VERSION}"
-          gh pr merge "$branch" --repo Octane0411/homebrew-tap --merge --admin --delete-branch
+          gh pr merge "$branch" --repo Octane0411/homebrew-tap --merge --delete-branch
 
       - name: Refresh contributors image cache via PR
         continue-on-error: true
