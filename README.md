@@ -109,17 +109,17 @@ Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free,
 
 ## Quick Start
 
-### Option 1: Homebrew
+### Option 1: Download
+
+Grab the latest DMG from [GitHub Releases](https://github.com/Octane0411/open-vibe-island/releases) — signed and notarized, ready to run.
+
+### Option 2: Homebrew
 
 ```bash
 brew install --cask octane0411/tap/openisland
 ```
 
 Upgrade later with `brew upgrade --cask openisland`.
-
-### Option 2: Download DMG
-
-Grab the latest DMG from [GitHub Releases](https://github.com/Octane0411/open-vibe-island/releases) — signed and notarized, ready to run.
 
 ### Option 3: Build from source
 
