@@ -37,16 +37,8 @@ final class OpenIslandAppDelegate: NSObject, NSApplicationDelegate {
                 )
             }
 
-            // Hide all windows on launch — settings and debug open on demand only.
+            // Hide all windows on launch — settings opens on demand only.
             OpenIslandAppDelegate.hideAllAppWindows()
-
-            if harnessLaunchConfiguration.shouldShowControlCenter,
-               harnessLaunchConfiguration.scenario != nil {
-                model.showControlCenter()
-                harnessRuntimeMonitor.recordMilestone("controlCenterConfigured", message: "shown")
-            } else {
-                harnessRuntimeMonitor.recordMilestone("controlCenterConfigured", message: "hidden")
-            }
 
             harnessRuntimeMonitor.recordMilestone("bootstrapCompleted")
 
@@ -116,12 +108,6 @@ struct OpenIslandApp: App {
                 .keyboardShortcut(",", modifiers: .command)
             }
         }
-
-        #if DEBUG
-        WindowGroup("Open Island Debug") {
-            ControlCenterView(model: appDelegate.model)
-        }
-        #endif
     }
 }
 

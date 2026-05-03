@@ -137,7 +137,7 @@
 "island.terminalOwnership" = "Open Island will show live agents after terminal ownership is confirmed";
 "island.noTerminals" = "No open terminal sessions";
 "island.startAgent" = "Start a coding agent in your terminal";
-"island.recentSessions" = "Recent sessions remain in Control Center until the terminal is open again";
+"island.recentSessions" = "Recent sessions are kept here until the terminal is open again";
 "island.hint.installHooks" = "No agent hooks installed — sessions won't surface events. Tap to set up.";
 
 /* Island Panel - Session List */
@@ -160,32 +160,5 @@
 "completion.done" = "Done";
 "completion.replyPlaceholder" = "Reply to Claude…";
 
-/* Debug Panel */
-"debug.title" = "Open Island Debug";
-"debug.description" = "Mock-driven notch surface harness for validating session list, approval, question, and completion cards.";
-"debug.scenarios" = "Scenarios";
-"debug.actions" = "Actions";
-"debug.actionsDescription" = "The inline preview is isolated. Use the button below if you want the real top-of-screen island to mirror the current mock.";
-"debug.mirrorToIsland" = "Mirror To Island";
-"debug.closeIsland" = "Close Island";
-"debug.currentMock" = "Current Mock";
-"debug.liveOverlay" = "Live Overlay";
-"debug.inlinePreview" = "Inline Preview";
-"debug.previewDescription" = "This preview is stable and ignores live bridge activity.";
-"debug.visible" = "Visible";
-"debug.surface" = "Surface";
-"debug.sessions" = "Sessions";
-"debug.message" = "Message";
-"debug.yes" = "Yes";
-"debug.no" = "No";
-"debug.refresh" = "Refresh";
-"debug.removeHooks" = "Remove Hooks";
-"debug.installHooks" = "Install Hooks";
-"debug.removeBridge" = "Remove Bridge";
-"debug.installBridge" = "Install Bridge";
-"debug.sessionList" = "Session List";
-"debug.sessionListActionable" = "Session List (Actionable)";
-
 /* Window Titles */
 "window.settings" = "Open Island Settings";
-"window.debug" = "Open Island Debug";

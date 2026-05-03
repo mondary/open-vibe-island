@@ -996,25 +996,6 @@ final class AppModel {
         NotificationCenter.default.post(name: .openIslandSelectSetupTab, object: nil)
     }
 
-    func showControlCenter() {
-        guard let window = NSApp.windows.first(where: { $0.title == "Open Island Debug" }) else {
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        window.orderFrontRegardless()
-        window.makeKey()
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    func hideControlCenter() {
-        guard let window = NSApp.windows.first(where: { $0.title == "Open Island Debug" }) else {
-            return
-        }
-
-        window.orderOut(nil)
-    }
-
     func toggleSoundMuted() {
         isSoundMuted.toggle()
     }
