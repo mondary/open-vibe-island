@@ -24,6 +24,9 @@ final class AppModel {
     private static let islandPixelShapeStyleDefaultsKey = "appearance.island.pixelShapeStyle"
     private static let islandStatusColorsDefaultsKey = "appearance.island.statusColors"
     private static let showCodexUsageDefaultsKey = "app.showCodexUsage"
+    private static let labsAlwaysShowLLMQuotaInClosedNotchDefaultsKey = "labs.alwaysShowLLMQuotaInClosedNotch"
+    private static let labsClosedQuotaWindowModeDefaultsKey = "labs.closedQuotaWindowMode"
+    private static let labsClosedQuotaValueModeDefaultsKey = "labs.closedQuotaValueMode"
     private static let completionReplyEnabledDefaultsKey = "feature.completionReply.enabled"
     private static let suppressFrontmostNotificationsDefaultsKey = "app.suppressFrontmostNotifications"
 
@@ -243,6 +246,30 @@ final class AppModel {
         didSet {
             guard hasFinishedInit, showCodexUsage != oldValue else { return }
             UserDefaults.standard.set(showCodexUsage, forKey: Self.showCodexUsageDefaultsKey)
+        }
+    }
+    var labsAlwaysShowLLMQuotaInClosedNotch: Bool = false {
+        didSet {
+            guard hasFinishedInit, labsAlwaysShowLLMQuotaInClosedNotch != oldValue else { return }
+            UserDefaults.standard.set(
+                labsAlwaysShowLLMQuotaInClosedNotch,
+                forKey: Self.labsAlwaysShowLLMQuotaInClosedNotchDefaultsKey
+            )
+            refreshOverlayPlacementIfVisible()
+        }
+    }
+    var labsClosedQuotaWindowMode: LabsClosedQuotaWindowMode = .all {
+        didSet {
+            guard hasFinishedInit, labsClosedQuotaWindowMode != oldValue else { return }
+            UserDefaults.standard.set(labsClosedQuotaWindowMode.rawValue, forKey: Self.labsClosedQuotaWindowModeDefaultsKey)
+            refreshOverlayPlacementIfVisible()
+        }
+    }
+    var labsClosedQuotaValueMode: LabsClosedQuotaValueMode = .usedPercent {
+        didSet {
+            guard hasFinishedInit, labsClosedQuotaValueMode != oldValue else { return }
+            UserDefaults.standard.set(labsClosedQuotaValueMode.rawValue, forKey: Self.labsClosedQuotaValueModeDefaultsKey)
+            refreshOverlayPlacementIfVisible()
         }
     }
     var completionReplyEnabled: Bool = false {
@@ -529,6 +556,15 @@ final class AppModel {
                 atPath: CodexRolloutDiscovery.defaultRootURL.path
             )
         }
+        labsAlwaysShowLLMQuotaInClosedNotch = UserDefaults.standard.bool(
+            forKey: Self.labsAlwaysShowLLMQuotaInClosedNotchDefaultsKey
+        )
+        labsClosedQuotaWindowMode = LabsClosedQuotaWindowMode(
+            rawValue: UserDefaults.standard.string(forKey: Self.labsClosedQuotaWindowModeDefaultsKey) ?? ""
+        ) ?? .all
+        labsClosedQuotaValueMode = LabsClosedQuotaValueMode(
+            rawValue: UserDefaults.standard.string(forKey: Self.labsClosedQuotaValueModeDefaultsKey) ?? ""
+        ) ?? .usedPercent
         completionReplyEnabled = UserDefaults.standard.bool(forKey: Self.completionReplyEnabledDefaultsKey)
         launchAtLoginEnabled = LaunchAtLoginService.shared.isEnabled
         islandAppearanceMode = IslandAppearanceMode(

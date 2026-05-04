@@ -151,7 +151,7 @@ struct SettingsView: View {
             case .shortcuts:
                 PlaceholderSettingsPane(model: model, titleKey: "settings.tab.shortcuts", subtitleKey: "settings.shortcuts.comingSoon")
             case .lab:
-                PlaceholderSettingsPane(model: model, titleKey: "settings.tab.lab", subtitleKey: "settings.lab.comingSoon")
+                LabSettingsPane(model: model)
             case .about:
                 AboutSettingsPane(model: model)
             }
@@ -164,6 +164,49 @@ struct SettingsView: View {
                 .padding(.trailing, 16)
             }
         }
+    }
+}
+
+// MARK: - Lab
+
+struct LabSettingsPane: View {
+    var model: AppModel
+
+    private var lang: LanguageManager { model.lang }
+
+    var body: some View {
+        Form {
+            Section(lang.t("settings.lab.experiments")) {
+                Toggle(lang.t("settings.lab.closedQuotaToggle"), isOn: Binding(
+                    get: { model.labsAlwaysShowLLMQuotaInClosedNotch },
+                    set: { model.labsAlwaysShowLLMQuotaInClosedNotch = $0 }
+                ))
+
+                Picker(lang.t("settings.lab.closedQuotaWindowMode"), selection: Binding(
+                    get: { model.labsClosedQuotaWindowMode },
+                    set: { model.labsClosedQuotaWindowMode = $0 }
+                )) {
+                    Text(lang.t("settings.lab.closedQuotaWindowMode.all")).tag(LabsClosedQuotaWindowMode.all)
+                    Text(lang.t("settings.lab.closedQuotaWindowMode.5h")).tag(LabsClosedQuotaWindowMode.fiveHourOnly)
+                    Text(lang.t("settings.lab.closedQuotaWindowMode.weekly")).tag(LabsClosedQuotaWindowMode.weeklyOnly)
+                    Text(lang.t("settings.lab.closedQuotaWindowMode.closestZero")).tag(LabsClosedQuotaWindowMode.closestToZeroUsed)
+                }
+
+                Picker(lang.t("settings.lab.closedQuotaValueMode"), selection: Binding(
+                    get: { model.labsClosedQuotaValueMode },
+                    set: { model.labsClosedQuotaValueMode = $0 }
+                )) {
+                    Text(lang.t("settings.lab.closedQuotaValueMode.used")).tag(LabsClosedQuotaValueMode.usedPercent)
+                    Text(lang.t("settings.lab.closedQuotaValueMode.remaining")).tag(LabsClosedQuotaValueMode.remainingPercent)
+                }
+
+                Text(lang.t("settings.lab.closedQuotaHelp"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .navigationTitle(lang.t("settings.tab.lab"))
     }
 }
 

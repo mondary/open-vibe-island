@@ -120,6 +120,17 @@
 /* Settings - Placeholder */
 "settings.shortcuts.comingSoon" = "Keyboard shortcuts coming soon.";
 "settings.lab.comingSoon" = "Experimental features coming soon.";
+"settings.lab.experiments" = "Experiments";
+"settings.lab.closedQuotaToggle" = "Always show LLM quota in closed notch";
+"settings.lab.closedQuotaWindowMode" = "Quota window";
+"settings.lab.closedQuotaWindowMode.all" = "All";
+"settings.lab.closedQuotaWindowMode.5h" = "5-hour only";
+"settings.lab.closedQuotaWindowMode.weekly" = "Weekly only";
+"settings.lab.closedQuotaWindowMode.closestZero" = "Closest to 0% used";
+"settings.lab.closedQuotaValueMode" = "Displayed value";
+"settings.lab.closedQuotaValueMode.used" = "Used %";
+"settings.lab.closedQuotaValueMode.remaining" = "Remaining % (100→0)";
+"settings.lab.closedQuotaHelp" = "Applies to the closed notch badge. Falls back to session count when usage data is unavailable.";
 
 /* Settings - About */
 "settings.about.version" = "Version %@";
