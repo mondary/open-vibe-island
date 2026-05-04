@@ -137,7 +137,7 @@
 "island.terminalOwnership" = "Open Island 將在確認終端機歸屬後顯示即時代理";
 "island.noTerminals" = "沒有已開啟的終端機工作階段";
 "island.startAgent" = "在終端機中啟動編碼代理";
-"island.recentSessions" = "最近的工作階段將保留在控制中心，直到終端機重新開啟";
+"island.recentSessions" = "最近的工作階段將保留在這裡，直到終端機重新開啟";
 "island.hint.installHooks" = "尚未安裝任何 Agent hook，工作階段不會觸發事件 · 點擊設定";
 
 /* Island Panel - Session List */
@@ -159,32 +159,5 @@
 "completion.done" = "完成";
 "completion.replyPlaceholder" = "回覆 Claude…";
 
-/* Debug Panel */
-"debug.title" = "Open Island 除錯";
-"debug.description" = "基於 Mock 的 Notch 介面測試工具，用於驗證工作階段清單、核准、問答和完成卡片。";
-"debug.scenarios" = "情境";
-"debug.actions" = "操作";
-"debug.actionsDescription" = "內嵌預覽是隔離的。如果您想讓真實的頂部島嶼鏡像目前 Mock，請使用下方按鈕。";
-"debug.mirrorToIsland" = "鏡像至島嶼";
-"debug.closeIsland" = "關閉島嶼";
-"debug.currentMock" = "目前 Mock";
-"debug.liveOverlay" = "即時浮層";
-"debug.inlinePreview" = "內嵌預覽";
-"debug.previewDescription" = "此預覽是穩定的，忽略即時 Bridge 活動。";
-"debug.visible" = "可見";
-"debug.surface" = "介面";
-"debug.sessions" = "工作階段";
-"debug.message" = "訊息";
-"debug.yes" = "是";
-"debug.no" = "否";
-"debug.refresh" = "重新整理";
-"debug.removeHooks" = "移除 Hooks";
-"debug.installHooks" = "安裝 Hooks";
-"debug.removeBridge" = "移除 Bridge";
-"debug.installBridge" = "安裝 Bridge";
-"debug.sessionList" = "工作階段清單";
-"debug.sessionListActionable" = "工作階段清單 (可操作)";
-
 /* Window Titles */
 "window.settings" = "Open Island 設定";
-"window.debug" = "Open Island 除錯";
