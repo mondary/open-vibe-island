@@ -48,6 +48,24 @@ Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free,
 - **Multi-agent** — One surface for Claude Code, Codex, Cursor, Gemini CLI, OpenCode, and more
 - **Multi-terminal** — Jump back to the exact terminal/IDE session in one click
 
+## Fork Changes (This Branch)
+
+### Added
+
+- **Labs: Closed-notch LLM usage display**
+  - Toggle: `Always show LLM quota in closed notch`
+  - Window mode: `All` / `5-hour only` / `Weekly only` / `Closest to 0% used`
+  - Value mode: `Used %` or `Remaining % (100→0)`
+  - Placement mode: `Right badge` or `Left near glyph`
+- **More language options in Settings**
+  - Added language choices: **French**, **Spanish**, **German**, **Italian**
+  - Added localization bundles: `fr`, `es`, `de`, `it` (seeded from English)
+
+### Modified
+
+- Kept quota behavior **isolated in Lab** so default UX remains stable unless the Lab toggle is enabled.
+- Closed-notch usage badge now gracefully falls back to session count when usage data is unavailable.
+
 ## Supported Agents & Terminals
 
 **10 agents**: Claude Code, Codex, Cursor, Gemini CLI, Kimi CLI, OpenCode, Qoder, Qwen Code, Factory, CodeBuddy
@@ -233,129 +251,6 @@ Repository: Octane0411/open-vibe-island
 </a>
 
 ---
-
-## Agent Parts
-
-This section is written for agents.
-
-The open-source macOS companion for terminal-native AI coding.
-
-`Open Island` puts a lightweight control surface in your notch or top bar so you can keep an eye on live coding agents, follow session progress, and jump back to the right terminal without breaking flow.
-
-### Why This Product Exists
-
-AI coding is becoming part of the daily development loop, but the surrounding control layer still too often means handing your machine over to a closed-source paid app.
-
-`Open Island` takes the opposite approach:
-
-- Open source
-- Local first, no server dependency
-- Native macOS (SwiftUI + AppKit)
-- Built to support the terminal workflow, not replace it
-
-### Who It Is For
-
-Developers who already live in the terminal and want a better way to work with coding agents on macOS without losing context.
-
-### Agent Integrations
-
-- **Codex CLI** — Hook-based integration. The managed installer installs `SessionStart`, `UserPromptSubmit`, and `Stop` by default to keep the terminal workflow low-noise. Open Island can parse richer Codex hook events such as `PreToolUse` and `PostToolUse` when configured manually, but those events are not part of the default managed installation. Codex file edits may use internal apply-patch paths, so file-edit approval should not be treated as guaranteed `PreToolUse` coverage. Reads 5-hour and 7-day account usage windows from local rollout files. Install/uninstall managed hooks from the Settings window or CLI.
-- **Codex Desktop App** — Detected via `__CFBundleIdentifier`; hook sessions tagged as `isCodexAppSession` so they follow desktop-app liveness (tied to `NSWorkspace.shared.runningApplications` rather than the CLI subprocess that exits after each turn). In addition to hooks, Open Island launches its own `codex app-server` subprocess and speaks JSON-RPC over stdio to receive live `thread/started`, `turn/started`, `turn/completed`, and `thread/closed` notifications. Clicking a session opens the exact conversation via the `codex://threads/<id>` URL scheme.
-- **Claude Code** — Hook-based integration via `~/.claude/settings.json`. Discovers sessions from `~/.claude/projects/` JSONL transcripts. Persists and restores sessions across app launches. Managed status line bridge with opt-in installation. Reads cached 5-hour and 7-day usage windows.
-- **OpenCode** — JS plugin integration via `~/.config/opencode/plugins/`. Plugin auto-installed on first launch. Receives session lifecycle, tool use, permission, and question events. Permission approval and question answering flows supported. Process detection via `ps`.
-- **Qoder** — Claude Code fork. Same hook format and events via `~/.qoder/settings.json`. Use `--source qoder` with the hooks binary.
-- **Qwen Code** — Claude Code fork. Same hook format and events via `~/.qwen/settings.json`. Use `--source qwen` with the hooks binary.
-- **Factory** — Claude Code fork. Same hook format and events via `~/.factory/settings.json`. Use `--source factory` with the hooks binary.
-- **CodeBuddy** — Claude Code fork. Same hook format and events via `~/.codebuddy/settings.json`. Use `--source codebuddy` with the hooks binary.
-- **Cursor** — Hook-based integration via `~/.cursor/hooks.json`. Receives `beforeSubmitPrompt`, `beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile`, `afterFileEdit`, and `stop` events. Session persistence across app launches. Workspace jump-back via `cursor -r`. Use `--source cursor` with the hooks binary.
-- **Gemini CLI** — Hook-based integration via `~/.gemini/settings.json`. Receives `SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`, and `UserPromptSubmit` events. Fire-and-forget (no block/deny). Use `--source gemini` with the hooks binary.
-- **Kimi CLI** — Hook-based integration via `~/.kimi/config.toml` `[[hooks]]` array (Moonshot AI). Kimi's hook payload is byte-compatible with Claude Code, so Open Island reuses the Claude decode path and adds a dedicated TOML installer. Subscribes to `SessionStart`, `UserPromptSubmit`, `Stop`, `Notification`, `PreToolUse`, and `PostToolUse`. Requires the Kimi CLI Hooks Beta. Use `--source kimi` with the hooks binary. Manage installation from the Settings window, or via CLI:
-
-  ```sh
-  swift run OpenIslandSetup installKimi    # write [[hooks]] entries into ~/.kimi/config.toml
-  swift run OpenIslandSetup statusKimi     # report whether managed hooks are present
-  swift run OpenIslandSetup uninstallKimi  # remove managed entries, preserve user-authored [[hooks]]
-  ```
-
-### Terminal Support
-
-- **Terminal.app**, **Ghostty**, **cmux**, **Kaku**, **WezTerm**, **iTerm2**, and **Zellij** — Full jump-back support with session attachment matching (cmux via Unix socket API, Kaku/WezTerm/Zellij via CLI pane targeting, iTerm2 via AppleScript session/TTY probe)
-- **VS Code**, **VS Code Insiders**, **Cursor**, **Windsurf**, **Trae** — Workspace-level jump via respective CLI (`code -r`, `cursor -r`, etc.)
-- **JetBrains IDEs** (IntelliJ IDEA, WebStorm, PyCharm, GoLand, CLion, RubyMine, PhpStorm, Rider, RustRover) — Workspace-level jump via IDE CLI launcher
-- **Warp** — Precision tab jump via SQLite pane lookup, pid-based sibling-tab disambiguation, and AX menu click
-
-### UI & Display
-
-- **Notch overlay** — On Macs with a built-in notch, the island sits in the notch area; on external displays or non-notch Macs, it falls back to a compact top-center bar
-- **Settings** — Hook install/uninstall, Codex/Claude usage dashboard, General, Display, Sound, Shortcuts, Lab (advanced), About
-- **Notification mode** — Auto-height notification panel for permission requests and session events
-- **Notification sounds** — Configurable system sounds (default: Bottle) with mute toggle
-- **i18n** — English and Simplified Chinese
-
-### Session Management
-
-- Live session visibility with expandable detail rows
-- Session state reducer (`SessionState.apply`) as single source of truth
-- Automatic session discovery from local transcript files and cache
-- Process discovery via `ps`/`lsof` for active agent matching
-
-### Architecture
-
-Four targets in one Swift package:
-
-| Target | Role |
-|---|---|
-| **OpenIslandApp** | SwiftUI + AppKit shell — menu bar, overlay panel, settings |
-| **OpenIslandCore** | Shared library — models, bridge transport (Unix socket IPC), hooks, session persistence |
-| **OpenIslandHooks** | Lightweight CLI invoked by agent hooks, forwards payloads via Unix socket |
-| **OpenIslandSetup** | Installer CLI for managing `~/.codex/config.toml` and hook entries |
-
-### Quick Start (Agent)
-
-Build and run locally:
-
-```bash
-open Package.swift
-```
-
-Build a local `.app` bundle:
-
-```bash
-zsh scripts/package-app.sh
-```
-
-That script creates `output/package/Open Island.app` and `output/package/Open Island.zip`. Pass `OPEN_ISLAND_SIGN_IDENTITY` to sign the bundle. See [docs/packaging.md](docs/packaging.md) for the full path, including notarization.
-
-#### Connect Codex
-
-Open the package in Xcode to run the macOS app target. On launch, the app restores its local cache, scans recent `~/.codex/sessions/**/rollout-*.jsonl` files for existing Codex sessions, and starts the live bridge for new hook events.
-
-The Settings window shows live Codex hook install status from `~/.codex`, and can install or uninstall managed hook entries directly. Installs copy the helper into `~/Library/Application Support/OpenIsland/bin/OpenIslandHooks` so repo renames do not break existing hooks.
-
-```bash
-swift build -c release --product OpenIslandHooks
-swift run OpenIslandSetup install
-swift run OpenIslandSetup status
-swift run OpenIslandSetup uninstall
-```
-
-#### Connect Claude Code
-
-Claude usage setup is available from the app's Settings window and remains opt-in. The bridge writes a managed `statusLine.command` to `~/.open-island/bin/open-island-statusline`, caches `rate_limits` into `/tmp/open-island-rl.json`, and refuses to overwrite an existing custom status line automatically.
-
-### Repository Map
-
-- Start with [docs/index.md](docs/index.md) for the current doc map.
-- Read [docs/quality.md](docs/quality.md) for the quality baseline and verification approach.
-- Read [docs/hooks.md](docs/hooks.md) for all supported hook events, payload fields, and directive response formats.
-- Run `scripts/harness.sh` for automated checks (docs validation, tests, build).
-
-### Requirements
-
-- macOS 14+
-- Swift 6.2
-- Xcode (for the app target)
-
 ---
 
 ## License
