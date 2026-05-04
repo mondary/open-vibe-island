@@ -181,6 +181,11 @@ struct LabSettingsPane: View {
                     get: { model.labsAlwaysShowLLMQuotaInClosedNotch },
                     set: { model.labsAlwaysShowLLMQuotaInClosedNotch = $0 }
                 ))
+                
+                Toggle(lang.t("settings.lab.closedQuotaNeverHide"), isOn: Binding(
+                    get: { model.labsNeverHideClosedQuota },
+                    set: { model.labsNeverHideClosedQuota = $0 }
+                ))
 
                 Picker(lang.t("settings.lab.closedQuotaWindowMode"), selection: Binding(
                     get: { model.labsClosedQuotaWindowMode },
@@ -470,6 +475,7 @@ struct SetupSettingsPane: View {
     @State private var confirmingUninstallQwenCode = false
     @State private var confirmingUninstallFactory = false
     @State private var confirmingUninstallCodebuddy = false
+    @State private var confirmingUninstallZai = false
     @State private var confirmingUninstallCursor = false
     @State private var confirmingUninstallGemini = false
     @State private var confirmingUninstallKimi = false
@@ -605,6 +611,23 @@ struct SetupSettingsPane: View {
                 } message: {
                     Text("This will remove Open Island hooks from ~/.codebuddy/settings.json.")
                 }
+                
+                hookRow(
+                    name: "Z.ai GLM",
+                    installed: model.zaiHooksInstalled,
+                    busy: model.isZaiHookSetupBusy,
+                    configLocationURL: model.zaiHookStatus?.settingsURL,
+                    installAction: { model.installZaiHooks() },
+                    uninstallAction: { confirmingUninstallZai = true }
+                )
+                .alert(lang.t("settings.general.uninstallConfirmTitle"), isPresented: $confirmingUninstallZai) {
+                    Button(lang.t("settings.general.uninstallConfirmAction"), role: .destructive) {
+                        model.uninstallZaiHooks()
+                    }
+                    Button(lang.t("settings.general.cancel"), role: .cancel) {}
+                } message: {
+                    Text("This will remove Open Island hooks from ~/.zai/settings.json.")
+                }
 
                 hookRow(
                     name: "Cursor",
@@ -731,6 +754,7 @@ struct SetupSettingsPane: View {
                     if !model.qwenCodeHooksInstalled { model.installQwenCodeHooks() }
                     if !model.factoryHooksInstalled { model.installFactoryHooks() }
                     if !model.codebuddyHooksInstalled { model.installCodebuddyHooks() }
+                    if !model.zaiHooksInstalled { model.installZaiHooks() }
                     if !model.cursorHooksInstalled { model.installCursorHooks() }
                     if !model.geminiHooksInstalled { model.installGeminiHooks() }
                     if !model.kimiHooksInstalled { model.installKimiHooks() }
@@ -794,7 +818,7 @@ struct SetupSettingsPane: View {
 
     private var allReady: Bool {
         model.claudeHooksInstalled && model.codexHooksInstalled && model.openCodePluginInstalled
-            && model.qoderHooksInstalled && model.qwenCodeHooksInstalled && model.factoryHooksInstalled && model.codebuddyHooksInstalled
+            && model.qoderHooksInstalled && model.qwenCodeHooksInstalled && model.factoryHooksInstalled && model.codebuddyHooksInstalled && model.zaiHooksInstalled
             && model.cursorHooksInstalled && model.geminiHooksInstalled && model.kimiHooksInstalled && model.claudeUsageInstalled
     }
 

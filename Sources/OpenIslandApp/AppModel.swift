@@ -28,6 +28,7 @@ final class AppModel {
     private static let labsClosedQuotaWindowModeDefaultsKey = "labs.closedQuotaWindowMode"
     private static let labsClosedQuotaValueModeDefaultsKey = "labs.closedQuotaValueMode"
     private static let labsClosedQuotaPlacementDefaultsKey = "labs.closedQuotaPlacement"
+    private static let labsNeverHideClosedQuotaDefaultsKey = "labs.neverHideClosedQuota"
     private static let completionReplyEnabledDefaultsKey = "feature.completionReply.enabled"
     private static let suppressFrontmostNotificationsDefaultsKey = "app.suppressFrontmostNotifications"
 
@@ -95,14 +96,17 @@ final class AppModel {
     var qwenCodeHooksInstalled: Bool { hooks.qwenCodeHooksInstalled }
     var factoryHooksInstalled: Bool { hooks.factoryHooksInstalled }
     var codebuddyHooksInstalled: Bool { hooks.codebuddyHooksInstalled }
+    var zaiHooksInstalled: Bool { hooks.zaiHooksInstalled }
     var qoderHookStatus: ClaudeHookInstallationStatus? { hooks.qoderHookStatus }
     var qwenCodeHookStatus: ClaudeHookInstallationStatus? { hooks.qwenCodeHookStatus }
     var factoryHookStatus: ClaudeHookInstallationStatus? { hooks.factoryHookStatus }
     var codebuddyHookStatus: ClaudeHookInstallationStatus? { hooks.codebuddyHookStatus }
+    var zaiHookStatus: ClaudeHookInstallationStatus? { hooks.zaiHookStatus }
     var isQoderHookSetupBusy: Bool { hooks.isQoderHookSetupBusy }
     var isQwenCodeHookSetupBusy: Bool { hooks.isQwenCodeHookSetupBusy }
     var isFactoryHookSetupBusy: Bool { hooks.isFactoryHookSetupBusy }
     var isCodebuddyHookSetupBusy: Bool { hooks.isCodebuddyHookSetupBusy }
+    var isZaiHookSetupBusy: Bool { hooks.isZaiHookSetupBusy }
     var openCodePluginInstalled: Bool { hooks.openCodePluginInstalled }
     var claudeUsageInstalled: Bool { hooks.claudeUsageInstalled }
     var claudeHookStatusTitle: String { hooks.claudeHookStatusTitle }
@@ -157,6 +161,7 @@ final class AppModel {
             || hooks.qwenCodeHooksInstalled
             || hooks.factoryHooksInstalled
             || hooks.codebuddyHooksInstalled
+            || hooks.zaiHooksInstalled
             || hooks.openCodePluginInstalled
             || hooks.geminiHooksInstalled
             || hooks.kimiHooksInstalled
@@ -179,6 +184,8 @@ final class AppModel {
     func uninstallFactoryHooks() { hooks.uninstallFactoryHooks() }
     func installCodebuddyHooks() { hooks.installCodebuddyHooks() }
     func uninstallCodebuddyHooks() { hooks.uninstallCodebuddyHooks() }
+    func installZaiHooks() { hooks.installZaiHooks() }
+    func uninstallZaiHooks() { hooks.uninstallZaiHooks() }
     func refreshCCForkHookStatuses() { hooks.refreshCCForkHookStatuses() }
     func installOpenCodePlugin() { hooks.installOpenCodePlugin() }
     func uninstallOpenCodePlugin() { hooks.uninstallOpenCodePlugin() }
@@ -277,6 +284,13 @@ final class AppModel {
         didSet {
             guard hasFinishedInit, labsClosedQuotaPlacement != oldValue else { return }
             UserDefaults.standard.set(labsClosedQuotaPlacement.rawValue, forKey: Self.labsClosedQuotaPlacementDefaultsKey)
+            refreshOverlayPlacementIfVisible()
+        }
+    }
+    var labsNeverHideClosedQuota: Bool = false {
+        didSet {
+            guard hasFinishedInit, labsNeverHideClosedQuota != oldValue else { return }
+            UserDefaults.standard.set(labsNeverHideClosedQuota, forKey: Self.labsNeverHideClosedQuotaDefaultsKey)
             refreshOverlayPlacementIfVisible()
         }
     }
@@ -576,6 +590,7 @@ final class AppModel {
         labsClosedQuotaPlacement = LabsClosedQuotaPlacement(
             rawValue: UserDefaults.standard.string(forKey: Self.labsClosedQuotaPlacementDefaultsKey) ?? ""
         ) ?? .rightBadge
+        labsNeverHideClosedQuota = UserDefaults.standard.bool(forKey: Self.labsNeverHideClosedQuotaDefaultsKey)
         completionReplyEnabled = UserDefaults.standard.bool(forKey: Self.completionReplyEnabledDefaultsKey)
         launchAtLoginEnabled = LaunchAtLoginService.shared.isEnabled
         islandAppearanceMode = IslandAppearanceMode(
@@ -1408,6 +1423,7 @@ final class AppModel {
                 if self.hooks.shouldAutoInstall(.qwenCode) { self.installQwenCodeHooks() }
                 if self.hooks.shouldAutoInstall(.factory) { self.installFactoryHooks() }
                 if self.hooks.shouldAutoInstall(.codebuddy) { self.installCodebuddyHooks() }
+                if self.hooks.shouldAutoInstall(.zai) { self.installZaiHooks() }
                 if self.hooks.shouldAutoInstall(.openCode) { self.installOpenCodePlugin() }
                 if self.hooks.shouldAutoInstall(.cursor) { self.installCursorHooks() }
                 if self.hooks.shouldAutoInstall(.gemini) { self.installGeminiHooks() }

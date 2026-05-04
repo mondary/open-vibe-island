@@ -1,258 +1,65 @@
-<p align="center">
-  <img src="Assets/Brand/app-icon-cat.png" alt="Open Island" width="128" height="128">
-</p>
+# Open Island
 
-<h1 align="center">Open Island</h1>
+Open-source, local-first macOS companion for AI coding agents.  
+Shows session state in a notch-aligned overlay (or top bar fallback), handles approvals, and jump-back to terminal/IDE context.
 
-<p align="center">
-  <strong>Why pay for a closed-source app just to monitor your coding agents?</strong>
-  <br>
-  Open-source, local-first, native macOS companion for AI coding agents.
-  <br><br>
-  <a href="README.zh-CN.md">中文</a> | <strong>English</strong>
-</p>
+## Quick Start
 
-<p align="center">
-  <a href="https://github.com/Octane0411/open-vibe-island/releases/latest"><img src="https://img.shields.io/github/v/release/Octane0411/open-vibe-island?style=flat-square&label=release&color=blue" alt="Latest Release"></a>
-  <a href="https://github.com/Octane0411/open-vibe-island/stargazers"><img src="https://img.shields.io/github/stars/Octane0411/open-vibe-island?style=flat-square&color=yellow" alt="Stars"></a>
-  <a href="https://discord.gg/bPF2HpbCFb"><img src="https://img.shields.io/badge/discord-join-5865F2?style=flat-square&logo=discord" alt="Discord"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL%20v3-green?style=flat-square" alt="License: GPL v3"></a>
-</p>
+### Download
+- Latest release: https://github.com/Octane0411/open-vibe-island/releases
 
-<p align="center">
-  <a href="https://github.com/Octane0411/open-vibe-island/releases">Download</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="docs/roadmap.md">Roadmap</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
-</p>
+### Build
+```bash
+git clone https://github.com/Octane0411/open-vibe-island.git
+cd open-vibe-island
+open Package.swift
+```
 
-<p align="center">
-  <img src="docs/images/demo.gif" alt="Open Island in action" width="720">
-</p>
+Requirements: macOS 14+, Swift 6.2, Xcode.
 
----
+## Supported (Core)
 
-## What is Open Island?
+- Agents: Claude Code, Codex, Cursor, Gemini CLI, Kimi CLI, OpenCode, Qoder, Qwen Code, Factory, CodeBuddy.
+- Terminals/IDEs: Terminal.app, Ghostty, iTerm2, WezTerm, Zellij, tmux, cmux, Kaku, VS Code family, JetBrains family.
 
-Open Island sits in your Mac's **notch** (or top bar) and gives you a real-time control surface for your AI coding agents — session status, permission approvals, and instant jump-back to the right terminal. All without leaving your flow.
+## Notes About The Notch
 
-Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free, local-first, and you own every bit of it**.
-
-> *You don't need to pay for a product you can vibe, since you are a vibe coder.*
-
-## Why Open Island?
-
-- **Open source** — GPL v3, fork it, mod it, ship your own version
-- **Local-first** — No server, no telemetry, no account. Everything runs on your Mac
-- **Native macOS** — SwiftUI + AppKit, not an Electron wrapper
-- **Multi-agent** — One surface for Claude Code, Codex, Cursor, Gemini CLI, OpenCode, and more
-- **Multi-terminal** — Jump back to the exact terminal/IDE session in one click
+- The physical MacBook notch is a hardware cutout (non-display area).
+- Open Island does not render inside the notch.
+- It renders a notch-aligned overlay around it to create the island effect.
 
 ## Fork Changes (This Branch)
 
 ### Added
 
-- **Labs: Closed-notch LLM usage display**
-  - Toggle: `Always show LLM quota in closed notch`
+- Labs controls for closed-notch quota display:
+  - `Always show LLM quota in closed notch`
+  - `Never hide closed-notch quota`
   - Window mode: `All` / `5-hour only` / `Weekly only` / `Closest to 0% used`
   - Value mode: `Used %` or `Remaining % (100→0)`
   - Placement mode: `Right badge` or `Left near glyph`
-- **More language options in Settings**
-  - Added language choices: **French**, **Spanish**, **German**, **Italian**
-  - Added localization bundles: `fr`, `es`, `de`, `it` (seeded from English)
+- Language options in Settings:
+  - Added: French, Spanish, German, Italian
+  - Added localization bundles: `fr`, `es`, `de`, `it`
+- Z.ai GLM hook support:
+  - New setup row: `Z.ai GLM`
+  - Install/uninstall managed hooks via `~/.zai/settings.json`
+  - Hook source mapping: `zai`/`z.ai`/`glm`
+  - Session/liveness integration for `zai` process detection
 
 ### Modified
 
-- Kept quota behavior **isolated in Lab** so default UX remains stable unless the Lab toggle is enabled.
-- Closed-notch usage badge now gracefully falls back to session count when usage data is unavailable.
+- Closed-notch quota feature remains isolated in Labs (default UX unchanged unless enabled).
+- Closed-notch usage fallback still reverts to session count when no usage snapshot exists.
+- README trimmed to remove non-essential marketing/community blocks.
 
-## Supported Agents & Terminals
+## Repo Docs
 
-**10 agents**: Claude Code, Codex, Cursor, Gemini CLI, Kimi CLI, OpenCode, Qoder, Qwen Code, Factory, CodeBuddy
-
-**15+ terminals & IDEs**: Terminal.app, Ghostty, iTerm2, WezTerm, Zellij, tmux, cmux, Kaku, VS Code, Cursor, Windsurf, Trae, JetBrains IDEs (IDEA, WebStorm, PyCharm, GoLand, CLion, RubyMine, PhpStorm, Rider, RustRover)
-
-<details>
-<summary>Full compatibility table</summary>
-
-### Code Agents
-
-| Agent | Status | Description |
-|---|---|---|
-| **Claude Code** | Supported | Hook integration, JSONL session discovery, status line bridge, usage tracking |
-| **Codex** (CLI) | Supported | Hook integration (SessionStart, UserPromptSubmit, Stop by default; PreToolUse/PostToolUse parseable but not default), usage tracking |
-| **Codex Desktop App** | Supported | Hook integration + app-server JSON-RPC connection for real-time thread/turn lifecycle. Precise conversation jump via `codex://threads/<id>` deep-link |
-| **OpenCode** | Supported | JS plugin integration, permission/question flows, process detection |
-| **Qoder** | Supported | Claude Code fork — same hook format, config at `~/.qoder/settings.json` |
-| **Qwen Code** | Supported | Claude Code fork — same hook format, config at `~/.qwen/settings.json` |
-| **Factory** | Supported | Claude Code fork — same hook format, config at `~/.factory/settings.json` |
-| **CodeBuddy** | Supported | Claude Code fork — same hook format, config at `~/.codebuddy/settings.json` |
-| **Cursor** | Supported | Hook integration via `~/.cursor/hooks.json`, session tracking, workspace jump-back |
-| **Gemini CLI** | Supported | Hook integration via `~/.gemini/settings.json`, session tracking, fire-and-forget events |
-| **Kimi CLI** | Supported | Hook integration via `~/.kimi/config.toml` `[[hooks]]`, session tracking, permission flow (reuses Claude payload) |
-
-### Terminals & IDEs
-
-| Terminal / IDE | Support Level | Description |
-|---|---|---|
-| **Terminal.app** | Full | Jump-back with TTY targeting |
-| **Ghostty** | Full | Jump-back with ID matching |
-| **cmux** | Full | Jump-back via Unix socket API |
-| **Kaku** | Full | Jump-back via CLI pane targeting |
-| **WezTerm** | Full | Jump-back via CLI pane targeting |
-| **iTerm2** | Full | Jump-back with session ID / TTY matching |
-| **tmux** (multiplexer) | Full | Jump-back with session/window/pane targeting |
-| **Zellij** | Full | Jump-back via CLI pane/tab targeting |
-| **VS Code** | Workspace | Activate workspace via `code` CLI |
-| **Cursor** | Workspace | Activate workspace via `cursor` CLI |
-| **Windsurf** | Workspace | Activate workspace via `windsurf` CLI |
-| **Trae** | Workspace | Activate workspace via `trae` CLI |
-| **JetBrains IDEs** | Workspace | IDEA, WebStorm, PyCharm, GoLand, CLion, RubyMine, PhpStorm, Rider, RustRover |
-| **Warp** | Full | Precision tab jump via SQLite pane lookup + AX menu click |
-
-### Other Features
-
-| Feature | Description |
-|---|---|
-| Notch / top-bar overlay | Notch area on notch Macs, top-center bar on others |
-| Settings | Hook install/uninstall, usage dashboard |
-| Notification mode | Auto-height panel for permission requests and session events |
-| Notification sounds | Configurable system sounds, mute toggle |
-| i18n | English, Simplified Chinese |
-| Session discovery | Auto-discover from local transcripts, persist across launches |
-| Auto-update | Sparkle-based automatic updates |
-| Signed & notarized | DMG packaging with Apple notarization |
-
-</details>
-
-## Quick Start
-
-### Option 1: Download
-
-Grab the latest DMG from [GitHub Releases](https://github.com/Octane0411/open-vibe-island/releases) — signed and notarized, ready to run.
-
-### Option 2: Homebrew
-
-```bash
-brew install --cask octane0411/tap/openisland
-```
-
-Upgrade later with `brew upgrade --cask openisland`.
-
-### Option 3: Build from source
-
-```bash
-git clone https://github.com/Octane0411/open-vibe-island.git
-cd open-vibe-island
-open Package.swift   # Opens in Xcode — hit Run
-```
-
-On first launch, Open Island auto-discovers your active agent sessions and starts the live bridge. Hook installation is managed from the **Settings** window inside the app.
-
-> **Requirements**: macOS 14+, Swift 6.2, Xcode
-
-## How It Works
-
-```
-Agent (Claude Code / Codex / Cursor / ...)
-  ↓ hook event
-OpenIslandHooks CLI (stdin → Unix socket)
-  ↓ JSON envelope
-BridgeServer (in-app)
-  ↓ state update
-Notch overlay UI ← you see it here
-  ↓ click
-Jump back → correct terminal / IDE
-```
-
-Hooks **fail open** — if Open Island isn't running, your agents continue unaffected.
-
-<details>
-<summary>Architecture details</summary>
-
-Four targets in one Swift package:
-
-| Target | Role |
-|---|---|
-| **OpenIslandApp** | SwiftUI + AppKit shell — menu bar, overlay panel, settings |
-| **OpenIslandCore** | Shared library — models, bridge transport (Unix socket IPC), hooks, session persistence |
-| **OpenIslandHooks** | Lightweight CLI invoked by agent hooks, forwards payloads via Unix socket |
-| **OpenIslandSetup** | Installer CLI for managing `~/.codex/config.toml` and hook entries |
-
-See [docs/architecture.md](docs/architecture.md) for the full system design.
-
-</details>
-
-## Community
-
-Join us on **Discord** for discussion, feedback, and faster issue resolution:
-
-[![Discord](https://img.shields.io/discord/1490752192368476253?style=for-the-badge&logo=discord&label=Join%20Discord&color=5865F2)](https://discord.gg/bPF2HpbCFb)
-
-We welcome issues, pull requests, and new maintainers. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
-
-<details>
-<summary>WeChat group (for Chinese-speaking users)</summary>
-
-<img src="docs/images/wechat-group.jpg" alt="WeChat group QR code" width="240">
-
-</details>
-
-## Report a Bug via Your Code Agent
-
-Copy this prompt into your agent (Claude Code, Codex, etc.) to auto-generate a well-structured issue:
-
-<details>
-<summary>Click to expand</summary>
-
-```
-I'm having an issue with Open Island (https://github.com/Octane0411/open-vibe-island).
-
-Please help me file a GitHub issue. Do the following:
-
-1. Collect my environment info:
-   - Run `sw_vers` to get macOS version
-   - Run `swift --version` to get Swift version
-   - Check if Open Island is running: `ps aux | grep -i "open.island\|OpenIslandApp" | grep -v grep`
-   - Get the app version: `defaults read ~/Applications/Open\ Island\ Dev.app/Contents/Info.plist CFBundleShortVersionString 2>/dev/null || echo "unknown"`
-   - Check which terminal I'm using
-
-2. Ask me to describe:
-   - What I expected to happen
-   - What actually happened
-   - Steps to reproduce
-
-3. Create the issue on GitHub using `gh issue create` with this format:
-   - Title: concise summary
-   - Body with sections: **Environment**, **Description**, **Steps to Reproduce**, **Expected vs Actual Behavior**
-   - Add label "bug" if applicable
-
-Repository: Octane0411/open-vibe-island
-```
-
-</details>
-
-## Star History
-
-<a href="https://star-history.com/#Octane0411/open-vibe-island&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date" />
- </picture>
-</a>
-
-## Contributors
-
-<a href="https://github.com/Octane0411/open-vibe-island/graphs/contributors">
-  <!-- CONTRIBUTORS-IMG:START -->
-  <img src="https://contrib.rocks/image?repo=Octane0411/open-vibe-island&t=1777712167" />
-  <!-- CONTRIBUTORS-IMG:END -->
-</a>
-
----
----
+- Architecture: `docs/architecture.md`
+- Hooks: `docs/hooks.md`
+- Quality: `docs/quality.md`
+- Roadmap: `docs/roadmap.md`
 
 ## License
 
-[GPL v3](LICENSE)
+GPL v3 (`LICENSE`).
