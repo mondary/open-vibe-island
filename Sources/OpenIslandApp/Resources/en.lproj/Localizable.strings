@@ -126,6 +126,7 @@
 "settings.lab.comingSoon" = "Experimental features coming soon.";
 "settings.lab.experiments" = "Experiments";
 "settings.lab.closedQuotaToggle" = "Always show LLM quota in closed notch";
+"settings.lab.closedQuotaNeverHide" = "Never hide closed-notch quota";
 "settings.lab.closedQuotaWindowMode" = "Quota window";
 "settings.lab.closedQuotaWindowMode.all" = "All";
 "settings.lab.closedQuotaWindowMode.5h" = "5-hour only";

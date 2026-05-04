@@ -126,6 +126,7 @@
 "settings.lab.comingSoon" = "Experimental features coming soon.";
 "settings.lab.experiments" = "Expériences";
 "settings.lab.closedQuotaToggle" = "Toujours afficher le quota LLM dans le notch fermé";
+"settings.lab.closedQuotaNeverHide" = "Ne jamais masquer le quota notch fermé";
 "settings.lab.closedQuotaWindowMode" = "Fenêtre de quota";
 "settings.lab.closedQuotaWindowMode.all" = "Toutes";
 "settings.lab.closedQuotaWindowMode.5h" = "5 heures uniquement";

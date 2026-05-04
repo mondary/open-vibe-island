@@ -140,7 +140,7 @@ struct IslandPanelView: View {
     }
 
     private var hasClosedPresence: Bool {
-        model.liveSessionCount > 0
+        model.liveSessionCount > 0 || (model.labsNeverHideClosedQuota && hasClosedUsage)
     }
 
     private var showsIdleEdgeWhenCollapsed: Bool {
