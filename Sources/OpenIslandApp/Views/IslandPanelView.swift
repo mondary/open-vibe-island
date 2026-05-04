@@ -171,7 +171,7 @@ struct IslandPanelView: View {
     }
 
     private var countBadgeWidth: CGFloat {
-        if hasClosedUsage {
+        if hasClosedUsage, isClosedUsageRightPlacement {
             return closedUsageBadgeWidth
         }
         let digits = max(1, "\(model.liveSessionCount)".count)
@@ -182,7 +182,7 @@ struct IslandPanelView: View {
         guard !showsIdleEdgeWhenCollapsed else { return 0 }
         guard hasClosedPresence else { return 0 }
         let hasPending = closedSpotlightSession?.phase.requiresAttention == true
-        let leftWidth = sideWidth + 8 + (hasPending ? 18 : 0)
+        let leftWidth = sideWidth + 8 + (hasPending ? 18 : 0) + leftUsageExtraWidth
         let rightWidth = max(sideWidth, countBadgeWidth) + (hasPending ? 18 : 0)
         return leftWidth + rightWidth + 16 + (hasPending ? 6 : 0)
     }
@@ -201,6 +201,14 @@ struct IslandPanelView: View {
 
     private var hasClosedUsage: Bool {
         model.labsAlwaysShowLLMQuotaInClosedNotch && !closedUsageWindows.isEmpty
+    }
+    
+    private var isClosedUsageRightPlacement: Bool {
+        model.labsClosedQuotaPlacement == .rightBadge
+    }
+
+    private var isClosedUsageLeftPlacement: Bool {
+        model.labsClosedQuotaPlacement == .leftNearGlyph
     }
 
     private var closedUsageWindows: [UsageWindowPresentation] {
@@ -238,6 +246,11 @@ struct IslandPanelView: View {
             partial + chunk.count + 1
         }
         return max(56, CGFloat(charCount * 7 + 18))
+    }
+    
+    private var leftUsageExtraWidth: CGFloat {
+        guard hasClosedUsage, isClosedUsageLeftPlacement else { return 0 }
+        return closedUsageBadgeWidth + 6
     }
 
     private var closedUsageText: [String] {
@@ -438,8 +451,15 @@ struct IslandPanelView: View {
                                 color: phaseColor(closedSpotlightSession?.phase ?? .running)
                             )
                         }
+
+                        if hasClosedUsage, isClosedUsageLeftPlacement {
+                            ClosedUsageBadge(
+                                labels: closedUsageText,
+                                tint: closedSpotlightSession?.phase.requiresAttention == true ? .orange : scoutTint
+                            )
+                        }
                     }
-                    .frame(width: sideWidth + 8 + (closedSpotlightSession?.phase.requiresAttention == true ? 18 : 0))
+                    .frame(width: sideWidth + 8 + (closedSpotlightSession?.phase.requiresAttention == true ? 18 : 0) + leftUsageExtraWidth)
                 }
 
                 if !hasClosedPresence {
@@ -462,7 +482,7 @@ struct IslandPanelView: View {
                 if hasClosedPresence {
                     let attentionBalanceWidth: CGFloat = closedSpotlightSession?.phase.requiresAttention == true ? 18 : 0
                     Group {
-                        if hasClosedUsage {
+                        if hasClosedUsage, isClosedUsageRightPlacement {
                             ClosedUsageBadge(
                                 labels: closedUsageText,
                                 tint: closedSpotlightSession?.phase.requiresAttention == true ? .orange : scoutTint

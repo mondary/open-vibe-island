@@ -200,6 +200,14 @@ struct LabSettingsPane: View {
                     Text(lang.t("settings.lab.closedQuotaValueMode.remaining")).tag(LabsClosedQuotaValueMode.remainingPercent)
                 }
 
+                Picker(lang.t("settings.lab.closedQuotaPlacement"), selection: Binding(
+                    get: { model.labsClosedQuotaPlacement },
+                    set: { model.labsClosedQuotaPlacement = $0 }
+                )) {
+                    Text(lang.t("settings.lab.closedQuotaPlacement.right")).tag(LabsClosedQuotaPlacement.rightBadge)
+                    Text(lang.t("settings.lab.closedQuotaPlacement.left")).tag(LabsClosedQuotaPlacement.leftNearGlyph)
+                }
+
                 Text(lang.t("settings.lab.closedQuotaHelp"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -243,6 +251,10 @@ struct GeneralSettingsPane: View {
                 )) {
                     Text(lang.t("settings.general.languageSystem")).tag(LanguageManager.AppLanguage.system)
                     Text(lang.t("settings.general.languageEnglish")).tag(LanguageManager.AppLanguage.en)
+                    Text(lang.t("settings.general.languageFrench")).tag(LanguageManager.AppLanguage.fr)
+                    Text(lang.t("settings.general.languageSpanish")).tag(LanguageManager.AppLanguage.es)
+                    Text(lang.t("settings.general.languageGerman")).tag(LanguageManager.AppLanguage.de)
+                    Text(lang.t("settings.general.languageItalian")).tag(LanguageManager.AppLanguage.it)
                     Text(lang.t("settings.general.languageChinese")).tag(LanguageManager.AppLanguage.zhHans)
                     Text(lang.t("settings.general.languageTraditionalChinese")).tag(LanguageManager.AppLanguage.zhHant)
                 }

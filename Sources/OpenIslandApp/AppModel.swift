@@ -27,6 +27,7 @@ final class AppModel {
     private static let labsAlwaysShowLLMQuotaInClosedNotchDefaultsKey = "labs.alwaysShowLLMQuotaInClosedNotch"
     private static let labsClosedQuotaWindowModeDefaultsKey = "labs.closedQuotaWindowMode"
     private static let labsClosedQuotaValueModeDefaultsKey = "labs.closedQuotaValueMode"
+    private static let labsClosedQuotaPlacementDefaultsKey = "labs.closedQuotaPlacement"
     private static let completionReplyEnabledDefaultsKey = "feature.completionReply.enabled"
     private static let suppressFrontmostNotificationsDefaultsKey = "app.suppressFrontmostNotifications"
 
@@ -269,6 +270,13 @@ final class AppModel {
         didSet {
             guard hasFinishedInit, labsClosedQuotaValueMode != oldValue else { return }
             UserDefaults.standard.set(labsClosedQuotaValueMode.rawValue, forKey: Self.labsClosedQuotaValueModeDefaultsKey)
+            refreshOverlayPlacementIfVisible()
+        }
+    }
+    var labsClosedQuotaPlacement: LabsClosedQuotaPlacement = .rightBadge {
+        didSet {
+            guard hasFinishedInit, labsClosedQuotaPlacement != oldValue else { return }
+            UserDefaults.standard.set(labsClosedQuotaPlacement.rawValue, forKey: Self.labsClosedQuotaPlacementDefaultsKey)
             refreshOverlayPlacementIfVisible()
         }
     }
@@ -565,6 +573,9 @@ final class AppModel {
         labsClosedQuotaValueMode = LabsClosedQuotaValueMode(
             rawValue: UserDefaults.standard.string(forKey: Self.labsClosedQuotaValueModeDefaultsKey) ?? ""
         ) ?? .usedPercent
+        labsClosedQuotaPlacement = LabsClosedQuotaPlacement(
+            rawValue: UserDefaults.standard.string(forKey: Self.labsClosedQuotaPlacementDefaultsKey) ?? ""
+        ) ?? .rightBadge
         completionReplyEnabled = UserDefaults.standard.bool(forKey: Self.completionReplyEnabledDefaultsKey)
         launchAtLoginEnabled = LaunchAtLoginService.shared.isEnabled
         islandAppearanceMode = IslandAppearanceMode(

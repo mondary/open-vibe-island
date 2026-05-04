@@ -60,3 +60,10 @@ enum LabsClosedQuotaValueMode: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 }
+
+enum LabsClosedQuotaPlacement: String, CaseIterable, Identifiable {
+    case rightBadge
+    case leftNearGlyph
+
+    var id: String { rawValue }
+}
